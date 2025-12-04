@@ -1,0 +1,2011 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>СА ДО - Расширенный веб-дашборд</title>
+
+    <!-- Библиотеки -->
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.0/font/bootstrap-icons.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+
+    <style>
+        :root {
+            --gazprom-blue: #0047BB;
+            --gazprom-light: #E6F0FF;
+            --success: #28a745;
+            --warning: #ffc107;
+            --danger: #dc3545;
+            --gray: #6c757d;
+        }
+        
+        .do-details-page {
+            background: white;
+            min-height: 100vh;
+        }
+        
+        .nav-tabs .nav-link {
+            font-weight: 500;
+            color: var(--gray);
+            border: none;
+            padding: 0.75rem 1.5rem;
+        }
+        
+        .nav-tabs .nav-link.active {
+            color: var(--gazprom-blue);
+            border-bottom: 3px solid var(--gazprom-blue);
+            background: transparent;
+        }
+        
+        .metric-card {
+            background: white;
+            border-radius: 10px;
+            padding: 1.5rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            text-align: center;
+            height: 100%;
+        }
+        
+        .metric-value {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+        
+        .metric-label {
+            color: var(--gray);
+            font-size: 0.9rem;
+        }
+        
+        .chart-container {
+            position: relative;
+            height: 400px;
+            width: 100%;
+        }
+        
+        .system-type-badge {
+            font-size: 0.8rem;
+            margin: 0.1rem;
+        }
+        
+        .problem-system {
+            border-left: 4px solid var(--danger);
+            background-color: #fff5f5;
+        }
+        
+        .scrollable-table {
+            max-height: 600px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <!-- Навигационная панель -->
+        <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+            <div class="container-fluid">
+                <a class="navbar-brand" href="#" @click="showDashboard">
+                    <i class="bi bi-building me-2"></i>
+                    Система управления ДО
+                </a>
+
+                <div v-if="currentPage === 'dashboard'" class="navbar-nav ms-auto">
+                    <span class="navbar-text text-light me-3">
+                        <i class="bi bi-calendar-check"></i> {{ currentDate }}
+                    </span>
+                </div>
+
+                <div v-if="currentPage === 'do-details'" class="navbar-nav ms-auto">
+                    <button class="btn btn-outline-light btn-sm" @click="showDashboard">
+                        <i class="bi bi-arrow-left"></i> Назад к списку
+                    </button>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Главный дашборд -->
+        <div v-if="currentPage === 'dashboard'" class="container-fluid mt-4">
+            <!-- Вкладки основного навигации -->
+            <ul class="nav nav-tabs mb-4">
+                <li class="nav-item">
+                    <a class="nav-link" :class="{ active: activeTab === 'dashboard' }"
+                       @click="setActiveTab('dashboard')">
+                       <i class="bi bi-speedometer2"></i> Дашборд
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" :class="{ active: activeTab === 'analytics' }"
+                       @click="setActiveTab('analytics')">
+                       <i class="bi bi-graph-up"></i> Аналитика
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" :class="{ active: activeTab === 'import-substitution' }"
+                       @click="setActiveTab('import-substitution')">
+                       <i class="bi bi-arrow-left-right"></i> Импортозамещение
+                    </a>
+                </li>
+            </ul>
+
+            <!-- Дашборд -->
+            <div v-if="activeTab === 'dashboard'" class="tab-content">
+                <!-- Общая статистика -->
+                <div class="row mb-4">
+                    <div class="col-md-2">
+                        <div class="metric-card">
+                            <div class="metric-value text-primary">{{ totalDO }}</div>
+                            <div class="metric-label">Дочерних организаций</div>
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="metric-card">
+                            <div class="metric-value text-info">{{ totalSystems }}</div>
+                            <div class="metric-label">Систем автоматизации</div>
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="metric-card">
+                            <div class="metric-value text-warning">{{ totalProblems }}</div>
+                            <div class="metric-label">Проблемных систем</div>
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="metric-card">
+                            <div class="metric-value text-success">{{ Math.round(avgAutomation) }}%</div>
+                            <div class="metric-label">Средняя автоматизация</div>
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="metric-card">
+                            <div class="metric-value" :class="avgAge > 10 ? 'text-danger' : 'text-success'">{{ Math.round(avgAge) }}</div>
+                            <div class="metric-label">Средний возраст (лет)</div>
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="metric-card">
+                            <div class="metric-value text-primary">{{ systemTypes.length }}</div>
+                            <div class="metric-label">Типов систем</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Карточки ДО -->
+                <div class="row">
+                    <div class="col-12">
+                        <div class="card">
+                            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                                <h5 class="mb-0"><i class="bi bi-building text-primary"></i> Дочерние организации</h5>
+                                <div class="btn-group">
+                                    <button class="btn btn-outline-primary btn-sm" @click="loadDOList">
+                                        <i class="bi bi-arrow-clockwise"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div v-for="doItem in doList" :key="doItem.id" class="col-xl-3 col-lg-4 col-md-6 mb-3">
+                                        <div class="card h-100 do-card" @click="showDODetails(doItem.id)">
+                                            <div class="card-body">
+                                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                                    <h6 class="card-title text-primary mb-0">{{ doItem.name }}</h6>
+                                                    <span class="badge"
+                                                          :class="doItem.summary?.problem_count > 0 ? 'bg-warning' : 'bg-success'">
+                                                        {{ doItem.summary?.problem_count > 0 ? '⚠️ ' + doItem.summary.problem_count : '✅' }}
+                                                    </span>
+                                                </div>
+
+                                                <div v-if="doItem.summary" class="mt-3">
+                                                    <div class="row small text-muted">
+                                                        <div class="col-6">
+                                                            <i class="bi bi-cpu"></i> {{ doItem.summary.total_systems || 0 }}
+                                                        </div>
+                                                        <div class="col-6">
+                                                            <i class="bi bi-speedometer2"></i> {{ Math.round(doItem.summary.automation_level || 0) }}%
+                                                        </div>
+                                                        <div class="col-6">
+                                                            <i class="bi bi-calendar"></i> {{ Math.round(doItem.summary.avg_age || 0) }}
+                                                        </div>
+                                                        <div class="col-6">
+                                                            <i class="bi bi-activity"></i> {{ doItem.summary.problem_count || 0 }}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Аналитика -->
+            <div v-if="activeTab === 'analytics'" class="tab-content">
+                <div class="row mb-4">
+                    <div class="col-12">
+                        <h4><i class="bi bi-graph-up text-primary"></i> Аналитика систем автоматизации</h4>
+                    </div>
+                </div>
+
+                <!-- Вкладки аналитики -->
+                <ul class="nav nav-pills mb-4">
+                    <li class="nav-item">
+                        <a class="nav-link" :class="{ active: analyticsTab === 'dobycha' }"
+                           @click="setAnalyticsTab('dobycha')">Добыча</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" :class="{ active: analyticsTab === 'transport' }"
+                           @click="setAnalyticsTab('transport')">Транспорт</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" :class="{ active: analyticsTab === 'pererabotka' }"
+                           @click="setAnalyticsTab('pererabotka')">Переработка</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" :class="{ active: analyticsTab === 'phg' }"
+                           @click="setAnalyticsTab('phg')">ПХГ</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" :class="{ active: analyticsTab === 'age' }"
+                           @click="setAnalyticsTab('age')">Возраст систем</a>
+                    </li>
+                </ul>
+
+                <!-- Аналитика добычи -->
+                <div v-if="analyticsTab === 'dobycha'">
+                    <div class="card mb-4">
+                        <div class="card-header bg-white">
+                            <h5 class="mb-0">Технологические объекты добычи</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-sm table-hover">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>ДО</th>
+                                            <th>УКПГ, шт.</th>
+                                            <th>Скважины, шт.</th>
+                                            <th>ДКС, шт.</th>
+                                            <th>КЦ, шт.</th>
+                                            <th>ГПА, шт.</th>
+                                            <th>ЦДП, шт.</th>
+                                            <th>ДП, шт.</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr v-for="item in dobychaData" :key="item.do_name">
+                                            <td><strong>{{ item.do_name }}</strong></td>
+                                            <td>{{ item.ukpg_count || 0 }}</td>
+                                            <td>{{ item.wells_count || 0 }}</td>
+                                            <td>{{ item.dks_count || 0 }}</td>
+                                            <td>{{ item.kc_count || 0 }}</td>
+                                            <td>{{ item.gpa_count || 0 }}</td>
+                                            <td>{{ item.cdp_count || 0 }}</td>
+                                            <td>{{ item.dp_count || 0 }}</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Графики добычи -->
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header bg-white">
+                                    <h6 class="mb-0">Покрытие СА скважин</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="chart-container">
+                                        <canvas id="dobychaCoverageChart"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header bg-white">
+                                    <h6 class="mb-0">Техническое состояние систем</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="chart-container">
+                                        <canvas id="dobychaConditionChart"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Аналитика транспорта -->
+                <div v-if="analyticsTab === 'transport'">
+                    <!-- Таблица технологических объектов -->
+                    <div class="card mb-4">
+                        <div class="card-header bg-white">
+                            <h5 class="mb-0">Технологические объекты транспорта</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive scrollable-table">
+                                <table class="table table-sm table-hover">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>ДО</th>
+                                            <th>МГ, км</th>
+                                            <th>ГО, км</th>
+                                            <th>ГРС, шт.</th>
+                                            <th>КС, шт.</th>
+                                            <th>КЦ, шт.</th>
+                                            <th>ГПА, шт.</th>
+                                            <th>ЦДП, шт.</th>
+                                            <th>ДП ЛПУ, шт.</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr v-for="item in transportData" :key="item.do_name">
+                                            <td><strong>{{ item.do_name }}</strong></td>
+                                            <td>{{ item.mg_length || 0 }}</td>
+                                            <td>{{ item.go_length || 0 }}</td>
+                                            <td>{{ item.grs_count || 0 }}</td>
+                                            <td>{{ item.ks_count || 0 }}</td>
+                                            <td>{{ item.kc_count || 0 }}</td>
+                                            <td>{{ item.gpa_count || 0 }}</td>
+                                            <td>{{ item.cdp_count || 0 }}</td>
+                                            <td>{{ item.dp_count || 0 }}</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Графики транспорта -->
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header bg-white">
+                                    <h6 class="mb-0">Покрытие СЛТМ магистральных газопроводов</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="chart-container">
+                                        <canvas id="mgCoverageChart"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header bg-white">
+                                    <h6 class="mb-0">Покрытие СЛТМ газопроводов-отводов</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="chart-container">
+                                        <canvas id="goCoverageChart"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+					<div class="card mb-4">
+						<div class="card-header bg-white">
+							<h5 class="mb-0">Тестирование графиков</h5>
+						</div>
+						<div class="card-body">
+							<button class="btn btn-primary me-2" @click="debugGraphics">Диагностика</button>
+							<button class="btn btn-success me-2" @click="loadTransportCoverageDetailed">Загрузить данные</button>
+							<button class="btn btn-warning" @click="renderTransportCoverageCharts">Нарисовать графики</button>
+						</div>
+					</div>
+
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header bg-white">
+                                    <h6 class="mb-0">Обеспеченность ГРС</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="chart-container">
+                                        <canvas id="grsCoverageChart"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                                    <h6 class="mb-0">Техническое состояние</h6>
+                                    <select class="form-select form-select-sm" style="width: auto;" v-model="transportSystemFilter" @change="updateTransportCharts">
+                                        <option value="Все системы">Все системы</option>
+                                        <option value="АСУ ТП УКПГ (УППГ)">АСУ ТП УКПГ</option>
+                                        <option value="АСУ ТП">АСУ ТП</option>
+                                        <option value="САУ ГПА">САУ ГПА</option>
+                                        <option value="АСПС">АСПС</option>
+                                        <option value="СТМ">СТМ</option>
+                                    </select>
+                                </div>
+                                <div class="card-body">
+                                    <div class="chart-container">
+                                        <canvas id="transportConditionChart"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Переработка и ПХГ -->
+                <div v-if="analyticsTab === 'pererabotka' || analyticsTab === 'phg'">
+                    <div class="card">
+                        <div class="card-header bg-white">
+                            <h5 class="mb-0">
+                                <i class="bi bi-tools"></i>
+                                {{ analyticsTab === 'pererabotka' ? 'Переработка' : 'ПХГ' }} - в разработке
+                            </h5>
+                        </div>
+                        <div class="card-body text-center py-5">
+                            <i class="bi bi-gear-fill display-1 text-muted"></i>
+                            <h4 class="text-muted mt-3">Раздел в разработке</h4>
+                            <p class="text-muted">Данный модуль находится в стадии активной разработки</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Возраст систем -->
+                <div v-if="analyticsTab === 'age'">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header bg-white">
+                                    <h6 class="mb-0">Распределение систем по возрасту</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="chart-container">
+                                        <canvas id="ageDistributionChart"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header bg-white">
+                                    <h6 class="mb-0">Детализация по возрастным группам</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="table-responsive">
+                                        <table class="table table-sm">
+                                            <thead>
+                                                <tr>
+                                                    <th>Возрастная группа</th>
+                                                    <th>Количество систем</th>
+                                                    <th>Доля</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <tr v-for="ageGroup in ageStats" :key="ageGroup.age_group">
+                                                    <td>{{ ageGroup.age_group }}</td>
+                                                    <td>{{ ageGroup.count }}</td>
+                                                    <td>
+                                                        <div class="progress" style="height: 20px;">
+                                                            <div class="progress-bar"
+                                                                 :class="getAgeProgressClass(ageGroup.age_group)"
+                                                                 :style="{ width: getAgePercentage(ageGroup) + '%' }">
+                                                                {{ Math.round(getAgePercentage(ageGroup)) }}%
+                                                            </div>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Импортозамещение - ПЕРЕМЕСТИТЬ на правильный уровень -->
+			<div v-if="activeTab === 'import-substitution'" class="tab-content">
+				<div class="row mb-4">
+					<div class="col-12">
+						<h4><i class="bi bi-arrow-left-right text-success"></i> Импортозамещение</h4>
+					</div>
+				</div>
+
+				<!-- Статистика -->
+				<div class="row mb-4">
+					<div class="col-md-3">
+						<div class="stat-card text-center">
+							<h3 class="text-primary">{{ importStats.overall.total || 0 }}</h3>
+							<small class="text-muted">Всего систем</small>
+						</div>
+					</div>
+					<div class="col-md-3">
+						<div class="stat-card text-center">
+							<h3 class="text-success">{{ importStats.overall.substituted || 0 }}</h3>
+							<small class="text-muted">Замещено</small>
+						</div>
+					</div>
+					<div class="col-md-3">
+						<div class="stat-card text-center">
+							<h3 class="text-warning">{{ importStats.overall.testing || 0 }}</h3>
+							<small class="text-muted">На испытаниях</small>
+						</div>
+					</div>
+					<div class="col-md-3">
+						<div class="stat-card text-center">
+							<h3 class="text-danger">{{ importStats.overall.not_substituted || 0 }}</h3>
+							<small class="text-muted">Не замещено</small>
+						</div>
+					</div>
+				</div>
+
+				<!-- Таблица систем -->
+				<div class="card">
+					<div class="card-header bg-white">
+						<h5 class="mb-0">Системы импортозамещения</h5>
+					</div>
+					<div class="card-body">
+						<div class="table-responsive scrollable-table">
+							<table class="table table-sm table-hover">
+								<thead class="table-light">
+									<tr>
+										<th>ДО</th>
+										<th>Система</th>
+										<th>Объект</th>
+										<th>Тип ПЛК</th>
+										<th>SCADA</th>
+
+										<th> class "position-relative">
+                                            Статус
+                                            <button
+                                                type="button"
+                                                class="btn btn-sm btn-outline-secondary ms-2 py-0 px-1 border-0"
+                                                style="width: 20px; height: 20px;"
+                                                @click="showStatusDropdown = !showStatusDropdown"
+                                                :aria-expanded=""></button>
+                                        </th>
+										<th>Этап испытаний</th>
+									</tr>
+								</thead>
+								<tbody>
+									<tr v-for="system in importSystems" :key="system.detail_id">
+										<td>{{ system.do_name }}</td>
+										<td>{{ system.system_name }}</td>
+										<td>{{ system.object_name }}</td>
+										<td>{{ system.plc_type || '-' }}</td>
+										<td>{{ system.scada_type || '-' }}</td>
+										<td>
+											<span class="badge" :class="getStatusClass(system.import_status)">
+												{{ system.import_status }}
+											</span>
+										</td>
+										<td>{{ system.test_stage || '-' }}</td>
+									</tr>
+								</tbody>
+							</table>
+						</div>
+					</div>
+				</div>
+			</div>
+        </div>
+
+        <!-- Детальная страница ДО -->
+        <div v-if="currentPage === 'do-details'" class="do-details-page">
+            <div class="container-fluid py-4">
+                <!-- Шапка детальной страницы -->
+                <div class="row mb-4">
+                    <div class="col-12">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <h2 class="text-primary mb-2">
+                                    <i class="bi bi-building"></i> {{ currentDO?.do_info?.name }}
+                                </h2>
+                                <p class="text-muted mb-0">Детальная информация по дочерней организации</p>
+                            </div>
+                            <div>
+                                <button class="btn btn-outline-primary me-2" @click="loadDODetails(currentDO.do_info.id)">
+                                    <i class="bi bi-arrow-clockwise"></i> Обновить
+                                </button>
+                                <button class="btn btn-primary" @click="showDashboard">
+                                    <i class="bi bi-list-ul"></i> К списку ДО
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Вкладки детальной информации -->
+                <ul class="nav nav-tabs mb-4">
+                    <li class="nav-item">
+                        <a class="nav-link" :class="{ active: doDetailsTab === 'overview' }"
+                           @click="setDODetailsTab('overview')">Обзор</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" :class="{ active: doDetailsTab === 'tech-data' }"
+                           @click="setDODetailsTab('tech-data')">Технические показатели</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" :class="{ active: doDetailsTab === 'automation' }"
+                           @click="setDODetailsTab('automation')">Уровень автоматизации</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" :class="{ active: doDetailsTab === 'analysis' }"
+                           @click="setDODetailsTab('analysis')">Анализ систем</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" :class="{ active: doDetailsTab === 'problems' }"
+                           @click="setDODetailsTab('problems')">Проблемные системы</a>
+                    </li>
+                </ul>
+
+                <!-- Загрузка -->
+                <div v-if="doDetailsLoading" class="text-center py-5">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Загрузка...</span>
+                    </div>
+                    <p class="mt-2">Загрузка данных ДО...</p>
+                </div>
+
+                <!-- Контент вкладок -->
+                <div v-else>
+                    <!-- Вкладка обзора -->
+                    <div v-if="doDetailsTab === 'overview'">
+                        <div class="row mb-4">
+                            <!-- KPI карточки -->
+                            <div class="col-md-3" v-for="metric in overviewMetrics" :key="metric.label">
+                                <div class="metric-card">
+                                    <div class="metric-value" :class="metric.colorClass">{{ metric.value }}</div>
+                                    <div class="metric-label">{{ metric.label }}</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="card">
+                                    <div class="card-header bg-white">
+                                        <h6 class="mb-0">Распределение по типам систем</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="chart-container">
+                                            <canvas id="doSystemTypesChart"></canvas>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="card">
+                                    <div class="card-header bg-white">
+                                        <h6 class="mb-0">Возрастное распределение</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="chart-container">
+                                            <canvas id="doAgeDistributionChart"></canvas>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Технические показатели -->
+                    <div v-if="doDetailsTab === 'tech-data'">
+                        <div class="card">
+                            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                                <h6 class="mb-0">Технические показатели</h6>
+                                <div>
+                                    <select class="form-select form-select-sm" v-model="techDataYear" @change="loadTechData">
+                                        <option v-for="year in availableYears" :value="year">{{ year }}</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                <div class="table-responsive scrollable-table">
+                                    <table class="table table-sm table-hover">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th>Вид системы</th>
+                                                <th>Объект</th>
+                                                <th>Год внедрения</th>
+                                                <th>Функциональность</th>
+                                                <th>Износ</th>
+                                                <th>Тип ПЛК</th>
+                                                <th>SCADA</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr v-for="detail in techData" :key="detail.id">
+                                                <td>{{ detail['Вид системы автоматизации'] || '-' }}</td>
+                                                <td>{{ detail['Наименование объекта'] || '-' }}</td>
+                                                <td>{{ detail['Год внедрения системы автоматизации'] || '-' }}</td>
+                                                <td>
+                                                    <span class="badge" :class="getFunctionalityClass(detail['Функциональность, %'])">
+                                                        {{ detail['Функциональность, %'] || '-' }}%
+                                                    </span>
+                                                </td>
+                                                <td>
+                                                    <span class="badge" :class="getWearClass(detail['Эксплуатационный износ'])">
+                                                        {{ detail['Эксплуатационный износ'] || '-' }}%
+                                                    </span>
+                                                </td>
+                                                <td>{{ detail['Тип ПЛК'] || '-' }}</td>
+                                                <td>{{ detail['Тип SCADA'] || '-' }}</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Анализ систем -->
+                    <div v-if="doDetailsTab === 'analysis'">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="card">
+                                    <div class="card-header bg-white">
+                                        <h6 class="mb-0">Статистика по типам систем</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <div v-for="stat in currentDO?.system_stats" :key="stat.system_type" class="mb-2">
+                                            <div class="d-flex justify-content-between align-items-center">
+                                                <span>{{ stat.system_type || 'Не указан' }}</span>
+                                                <span class="badge bg-primary rounded-pill">{{ stat.count }}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="card">
+                                    <div class="card-header bg-white">
+                                        <h6 class="mb-0">Системы старше 15 лет</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <div v-if="currentDO?.age_distribution" class="text-center">
+                                            <h4 class="text-primary">
+                                                {{ getOldSystemsCount }} систем
+                                            </h4>
+                                            <p class="text-muted">требуют внимания</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Проблемные системы -->
+                    <div v-if="doDetailsTab === 'problems'">
+                        <div class="card">
+                            <div class="card-header bg-white">
+                                <h6 class="mb-0">Системы, требующие внимания</h6>
+                            </div>
+                            <div class="card-body">
+                                <div v-if="currentDO?.problem_systems?.length > 0">
+                                    <div v-for="problem in currentDO.problem_systems" :key="problem.object_name"
+                                         class="alert alert-warning">
+                                        <div class="d-flex justify-content-between align-items-start">
+                                            <div>
+                                                <h6 class="alert-heading">{{ problem.object_name || 'Неизвестный объект' }}</h6>
+                                                <p class="mb-1">Тип: {{ problem.system_type || 'Не указан' }}</p>
+                                                <p class="mb-1">Год внедрения: {{ problem.install_year || 'Не указан' }}</p>
+                                            </div>
+                                            <div class="text-end">
+                                                <span class="badge bg-danger me-1">Износ: {{ problem.wear }}%</span>
+                                                <span class="badge bg-warning">Функциональность: {{ problem.functionality }}%</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div v-else class="text-center py-4">
+                                    <i class="bi bi-check-circle display-4 text-success"></i>
+                                    <h5 class="mt-3 text-success">Проблемные системы не обнаружены</h5>
+                                    <p class="text-muted">Все системы работают в штатном режиме</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+        const { createApp } = Vue;
+
+        createApp({
+            data() {
+                return {
+                    // Навигация
+                    currentPage: 'dashboard',
+                    activeTab: 'dashboard',
+                    analyticsTab: 'dobycha',
+                    doDetailsTab: 'overview',
+
+                    // Данные
+                    doList: [],
+                    currentDO: null,
+					transportCoverageDetailed: { mg: [], go: [], grs: [] },
+                    doDetailsLoading: false,
+
+                    // Аналитика
+                    dobychaData: [],
+                    transportData: [],
+                    pererabotkaData: [],
+                    phgData: [],
+                    ageStats: [],
+
+					// Импортозамещение - ДОБАВИТЬ ЭТИ ДАННЫЕ
+					importStats: {
+						overall: {
+							total: 0,
+							substituted: 0,
+							testing: 0,
+							not_substituted: 0
+						},
+						by_do: []
+					},
+					importSystems: [],
+
+                    // Фильтры
+                    transportSystemFilter: 'Все системы',
+                    techDataYear: 2023,
+                    availableYears: [2020, 2021, 2022, 2023, 2024],
+
+                    // Технические данные
+                    techData: [],
+
+                    // Графики
+                    charts: {},
+
+                    // Текущая дата
+                    currentDate: new Date().toLocaleDateString('ru-RU')
+
+                    // Фильтр по статусу импортозамещения
+                    importStatusFilter: 'Все',
+                }
+                showStatusDropdown: false,
+            },
+            computed: {
+                totalDO() {
+                    return this.doList.length;
+                },
+                totalSystems() {
+                    return this.doList.reduce((sum, doItem) => sum + (doItem.summary?.total_systems || 0), 0);
+                },
+                totalProblems() {
+                    return this.doList.reduce((sum, doItem) => sum + (doItem.summary?.problem_count || 0), 0);
+                },
+                avgAutomation() {
+                    const total = this.doList.reduce((sum, doItem) => sum + (doItem.summary?.automation_level || 0), 0);
+                    return this.doList.length > 0 ? total / this.doList.length : 0;
+                },
+                avgAge() {
+                    const total = this.doList.reduce((sum, doItem) => sum + (doItem.summary?.avg_age || 0), 0);
+                    return this.doList.length > 0 ? total / this.doList.length : 0;
+                },
+                systemTypes() {
+                    const types = new Set();
+                    this.doList.forEach(doItem => {
+                        if (doItem.summary?.system_types) {
+                            types.add(doItem.summary.system_types);
+                        }
+                    });
+                    return Array.from(types);
+                },
+                overviewMetrics() {
+                    if (!this.currentDO?.kpi) return [];
+
+                    return [
+                        {
+                            label: 'Всего систем',
+                            value: this.currentDO.kpi.total_systems,
+                            colorClass: 'text-primary'
+                        },
+                        {
+                            label: 'Уровень автоматизации',
+                            value: this.currentDO.kpi.automation_level + '%',
+                            colorClass: 'text-success'
+                        },
+                        {
+                            label: 'Средний возраст',
+                            value: this.currentDO.kpi.avg_age + ' лет',
+                            colorClass: this.currentDO.kpi.avg_age > 10 ? 'text-warning' : 'text-success'
+                        },
+                        {
+                            label: 'Проблемные системы',
+                            value: this.currentDO.kpi.problem_count,
+                            colorClass: this.currentDO.kpi.problem_count > 0 ? 'text-danger' : 'text-success'
+                        }
+                    ];
+                },
+                getOldSystemsCount() {
+                    if (!this.currentDO?.age_distribution) return 0;
+                    return this.currentDO.age_distribution
+                        .filter(age => age.age_group === '16+ лет')
+                        .reduce((sum, age) => sum + age.count, 0);
+                }
+
+                filteredImportSystems() {
+                    if (this.importStatusFilter === 'Все') {
+                        return this.importSystems;
+                    }
+                    return this.importSystems.filter(
+                        sys => sys.import_status === this.importStatusFilter
+                    );
+                }
+            },
+            async mounted() {
+                await this.loadAllData();
+				await this.loadImportSubstitution();
+                this.initCharts();
+				console.log("🚀 Приложение загружено");
+            },
+            methods: {
+                // Навигация
+                showDashboard() {
+                    this.currentPage = 'dashboard';
+                    this.activeTab = 'dashboard';
+                },
+
+                setActiveTab(tab) {
+                    this.activeTab = tab;
+                    if (tab === 'analytics') {
+                        this.$nextTick(() => {
+                            this.initAnalyticsCharts();
+                        });
+                    }
+                },
+
+				setAnalyticsTab(tab) {
+					this.analyticsTab = tab;
+					this.$nextTick(() => {
+						this.initAnalyticsCharts();
+						// ДОБАВЬТЕ ЭТУ СТРОЧКУ:
+						if (tab === 'transport') {
+							setTimeout(() => this.ensureChartsVisible(), 100);
+						}
+					});
+				},
+
+                setDODetailsTab(tab) {
+                    this.doDetailsTab = tab;
+                    this.$nextTick(() => {
+                        if (tab === 'overview') {
+                            this.initDOCharts();
+                        }
+                    });
+                },
+
+                // Загрузка данных
+                async loadAllData() {
+                    await Promise.all([
+                        this.loadDOList(),
+                        this.loadAnalyticsData()
+                    ]);
+                },
+
+				// В methods добавьте:
+				async loadTransportCoverageDetailed() {
+					try {
+						console.log("Загружаем данные покрытия...");
+						const response = await fetch('http://localhost:8000/api/analytics/transport/coverage-detailed');
+						this.transportCoverageDetailed = await response.json();
+						console.log("Данные загружены:", this.transportCoverageDetailed);
+
+
+						setTimeout(() => {
+							this.renderTransportCoverageCharts();
+						}, 100);
+					} catch (error) {
+						console.error('Ошибка загрузки данных покрытия:', error);
+					}
+				},
+
+				// Обновите renderTransportCharts:
+				renderTransportCharts() {
+					console.log("renderTransportCharts вызван");
+
+					// ПРОВЕРЯЕМ СУЩЕСТВОВАНИЕ ЭЛЕМЕНТОВ ПЕРЕД РИСОВАНИЕМ
+					const mgChart = document.getElementById('mgCoverageChart');
+					const goChart = document.getElementById('goCoverageChart');
+					const grsChart = document.getElementById('grsCoverageChart');
+
+					console.log("Элементы графиков:", { mgChart, goChart, grsChart });
+
+					if (!mgChart || !goChart || !grsChart) {
+						console.log("❌ Элементы графиков не найдены в DOM, откладываем...");
+						setTimeout(() => this.renderTransportCharts(), 100);
+						return;
+					}
+
+					// Если данные уже загружены - рисуем графики
+					if (this.transportCoverageDetailed && this.transportCoverageDetailed.mg.length > 0) {
+						console.log("✅ Данные загружены, рисуем графики");
+						this.renderTransportCoverageCharts();
+					} else {
+						console.log("📥 Данные не загружены, загружаем...");
+						this.loadTransportCoverageDetailed();
+					}
+				},
+
+				// ДОБАВЬТЕ ЭТОТ МЕТОД В methods
+				ensureChartsVisible() {
+					console.log("Проверка видимости графиков...");
+
+					// Ждем пока Vue обновит DOM
+					this.$nextTick(() => {
+						// Проверяем, активна ли нужная вкладка
+						if (this.activeTab === 'analytics' && this.analyticsTab === 'transport') {
+							console.log("✅ Вкладка транспорта активна, можно рисовать графики");
+							this.renderTransportCharts();
+						} else {
+							console.log("❌ Вкладка транспорта не активна, откладываем рисование");
+						}
+					});
+				},
+
+
+
+
+
+				debugGraphics() {
+				console.log("=== ДИАГНОСТИКА ГРАФИКОВ ===");
+				console.log("1. transportCoverageDetailed:", this.transportCoverageDetailed);
+				console.log("2. Элемент mgCoverageChart:", document.getElementById('mgCoverageChart'));
+				console.log("3. Элемент goCoverageChart:", document.getElementById('goCoverageChart'));
+				console.log("4. Элемент grsCoverageChart:", document.getElementById('grsCoverageChart'));
+				console.log("5. Текущая вкладка аналитики:", this.analyticsTab);
+				console.log("6. Активная вкладка:", this.activeTab);
+			},
+
+
+				    // ДОБАВЬТЕ ЭТИ МЕТОДЫ:
+				async loadTransportCoverageDetailed() {
+					try {
+						console.log("🔄 Загружаем данные покрытия...");
+						const response = await fetch('http://localhost:8000/api/analytics/transport/coverage-detailed');
+						this.transportCoverageDetailed = await response.json();
+						console.log("✅ Данные загружены:", this.transportCoverageDetailed);
+
+						// ЗАМЕНИТЕ $nextTick на setTimeout для гарантии
+						setTimeout(() => {
+							this.renderTransportCoverageCharts();
+						}, 200);
+					} catch (error) {
+						console.error('❌ Ошибка загрузки данных покрытия:', error);
+					}
+				},
+
+				renderTransportCoverageCharts() {
+					console.log("renderTransportCoverageCharts вызван");
+					this.renderMGCoverageChart();
+					this.renderGOCoverageChart();
+					this.renderGRSCoverageChart();
+				},
+
+				renderSimpleMGCoverage() {
+					console.log("=== РЕНДЕРИМ ГРАФИК МГ ===");
+					const ctx = document.getElementById('mgCoverageChart');
+					console.log("Canvas элемент:", ctx);
+
+					if (!ctx) {
+						console.error("❌ mgCoverageChart не найден!");
+						return;
+					}
+
+					// Убедимся, что контекст получен правильно
+					const context = ctx.getContext('2d');
+					if (!context) {
+						console.error("❌ Не удалось получить контекст canvas");
+						return;
+					}
+
+					// Удаляем старый график
+					if (this.charts.mgCoverage) {
+						this.charts.mgCoverage.destroy();
+					}
+
+					const data = this.transportCoverageDetailed?.mg || [];
+					console.log("Данные для МГ:", data);
+
+					if (data.length === 0) {
+						console.log("⚠️ Нет данных для графика МГ");
+						// Временно добавим тестовые данные для проверки
+						const testData = [
+							{ do_name: "Тест ДО 1", total: 1000, covered: 800 },
+							{ do_name: "Тест ДО 2", total: 1500, covered: 500 }
+						];
+						this.renderTestChart(ctx, testData, "МГ (тестовые)");
+						return;
+					}
+
+					// ОСНОВНАЯ РЕАЛИЗАЦИЯ
+					const labels = data.map(item => {
+						// Сокращаем длинные названия ДО
+						return item.do_name.replace('ООО «Газпром трансгаз ', '');
+					});
+					const totals = data.map(item => item.total);
+					const covered = data.map(item => item.covered);
+
+					console.log("Лейблы:", labels);
+					console.log("Тоталы:", totals);
+					console.log("Покрытие:", covered);
+
+					this.charts.mgCoverage = new Chart(context, {
+						type: 'bar',
+						data: {
+							labels: labels,
+							datasets: [
+								{
+									label: 'Общая протяженность',
+									data: totals,
+									backgroundColor: 'rgba(54, 162, 235, 0.7)',
+									borderColor: 'rgba(54, 162, 235, 1)',
+									borderWidth: 2
+								},
+								{
+									label: 'Телемеханизировано',
+									data: covered,
+									backgroundColor: 'rgba(75, 192, 192, 0.7)',
+									borderColor: 'rgba(75, 192, 192, 1)',
+									borderWidth: 2
+								}
+							]
+						},
+						options: {
+							responsive: true,
+							maintainAspectRatio: false,
+							plugins: {
+								title: {
+									display: true,
+									text: 'Покрытие СЛТМ магистральных газопроводов',
+									font: { size: 16 }
+								},
+								legend: {
+									position: 'top',
+								}
+							},
+							scales: {
+								y: {
+									beginAtZero: true,
+									title: {
+										display: true,
+										text: 'Протяженность, км'
+									},
+									ticks: {
+										callback: function(value) {
+											return value.toLocaleString('ru-RU');
+										}
+									}
+								},
+								x: {
+									ticks: {
+										maxRotation: 45,
+										minRotation: 45
+									}
+								}
+							}
+						}
+					});
+
+					console.log("✅ График МГ создан!");
+				},
+				renderGOCoverageChart() {
+					const ctx = document.getElementById('goCoverageChart');
+					if (!ctx) return;
+
+					if (this.charts.goCoverage) {
+						this.charts.goCoverage.destroy();
+					}
+
+					const data = this.transportCoverageDetailed?.go || [];
+
+					if (data.length === 0) return;
+
+					const doNames = data.map(d => d.do_name);
+					const totals = data.map(d => d.total);
+					const covered = data.map(d => d.covered);
+
+					const percentages = data.map(d => Math.round((d.covered / d.total) * 100));
+					const colors = percentages.map(p => {
+						if (p >= 80) return '#2ecc71';
+						if (p >= 50) return '#f39c12';
+						return '#e74c3c';
+					});
+
+					this.charts.goCoverage = new Chart(ctx, {
+						type: 'bar',
+						data: {
+							labels: doNames,
+							datasets: [
+								{
+									label: 'Общая протяженность',
+									data: totals,
+									backgroundColor: colors.map(c => c + '80'),
+									borderColor: colors,
+									borderWidth: 1
+								},
+								{
+									label: 'Телемеханизировано',
+									data: covered,
+									backgroundColor: colors,
+									borderColor: colors,
+									borderWidth: 1
+								}
+							]
+						},
+						options: {
+							responsive: true,
+							maintainAspectRatio: false,
+							plugins: {
+								title: {
+									display: true,
+									text: 'Покрытие СЛТМ газопроводов-отводов'
+								}
+							},
+							scales: {
+								y: {
+									beginAtZero: true,
+									title: {
+										display: true,
+										text: 'Протяженность, км'
+									}
+								}
+							}
+						}
+					});
+				},
+
+				renderGRSCoverageChart() {
+					const ctx = document.getElementById('grsCoverageChart');
+					if (!ctx) return;
+
+					if (this.charts.grsCoverage) {
+						this.charts.grsCoverage.destroy();
+					}
+
+					const data = this.transportCoverageDetailed?.grs || [];
+
+					if (data.length === 0) return;
+
+					const doNames = data.map(d => d.do_name);
+					const totals = data.map(d => d.total);
+					const covered = data.map(d => d.covered);
+					const notCovered = totals.map((total, index) => total - covered[index]);
+
+					this.charts.grsCoverage = new Chart(ctx, {
+						type: 'bar',
+						data: {
+							labels: doNames,
+							datasets: [
+								{
+									label: 'Телемеханизировано',
+									data: covered,
+									backgroundColor: '#2ecc71'
+								},
+								{
+									label: 'Не телемеханизировано',
+									data: notCovered,
+									backgroundColor: '#e74c3c'
+								}
+							]
+						},
+						options: {
+							responsive: true,
+							maintainAspectRatio: false,
+							plugins: {
+								title: {
+									display: true,
+									text: 'Обеспеченность ГРС'
+								}
+							},
+							scales: {
+								y: {
+									beginAtZero: true,
+									title: {
+										display: true,
+										text: 'Количество ГРС'
+									}
+								}
+							}
+						}
+					});
+				},
+				// (скопируйте из предыдущего сообщения)
+
+
+
+
+                async loadDOList() {
+                    try {
+                        const response = await fetch('http://localhost:8000/api/do-list');
+                        this.doList = await response.json();
+
+                        // Загружаем summary для каждого ДО
+                        for (let doItem of this.doList) {
+                            try {
+                                const summaryResponse = await fetch(`http://localhost:8000/api/do/${doItem.id}/summary`);
+                                doItem.summary = await summaryResponse.json();
+                            } catch (error) {
+                                console.error(`Ошибка загрузки summary для ДО ${doItem.id}:`, error);
+                                doItem.summary = { total_systems: 0, automation_level: 0, avg_age: 0, problem_count: 0 };
+                            }
+                        }
+                    } catch (error) {
+                        console.error('Ошибка загрузки списка ДО:', error);
+                    }
+                },
+
+                async loadAnalyticsData() {
+                    try {
+                        const [dobychaResponse, transportResponse, ageResponse] = await Promise.all([
+                            fetch('http://localhost:8000/api/analytics/dobycha/tech-objects'),
+                            fetch('http://localhost:8000/api/analytics/transport/tech-objects'),
+                            fetch('http://localhost:8000/api/analytics/age-stats')
+                        ]);
+
+                        this.dobychaData = await dobychaResponse.json();
+                        this.transportData = await transportResponse.json();
+                        this.ageStats = await ageResponse.json();
+                    } catch (error) {
+                        console.error('Ошибка загрузки аналитики:', error);
+                    }
+                },
+
+                // Детальные данные ДО
+                async showDODetails(doId) {
+                    this.currentPage = 'do-details';
+                    await this.loadDODetails(doId);
+                },
+
+                async loadDODetails(doId) {
+                    this.doDetailsLoading = true;
+                    try {
+                        const response = await fetch(`http://localhost:8000/api/do/${doId}/full-details`);
+                        this.currentDO = await response.json();
+
+                        // Загружаем технические данные
+                        await this.loadTechData();
+
+                        this.$nextTick(() => {
+                            this.initDOCharts();
+                        });
+                    } catch (error) {
+                        console.error('Ошибка загрузки детальных данных ДО:', error);
+                    } finally {
+                        this.doDetailsLoading = false;
+                    }
+                },
+
+                async loadTechData() {
+                    if (!this.currentDO) return;
+
+                    try {
+                        const response = await fetch(`http://localhost:8000/api/do/${this.currentDO.do_info.id}/tech-data?year=${this.techDataYear}`);
+                        const techDataResponse = await response.json();
+                        this.techData = techDataResponse.details || [];
+                    } catch (error) {
+                        console.error('Ошибка загрузки технических данных:', error);
+                        this.techData = [];
+                    }
+                },
+
+				async loadImportSubstitution() {
+					try {
+						const [statsResponse, systemsResponse] = await Promise.all([
+							fetch('http://localhost:8000/api/import-substitution/stats'),
+							fetch('http://localhost:8000/api/import-substitution/systems')
+						]);
+
+						if (statsResponse.ok) {
+							this.importStats = await statsResponse.json();
+						} else {
+							console.error('Ошибка загрузки статистики импортозамещения');
+						}
+
+						if (systemsResponse.ok) {
+							this.importSystems = await systemsResponse.json();
+						} else {
+							console.error('Ошибка загрузки систем импортозамещения');
+						}
+					} catch (error) {
+						console.error('Ошибка загрузки импортозамещения:', error);
+						// Заглушки для тестирования
+						this.importStats = {
+							overall: { total: 156, substituted: 45, testing: 23, not_substituted: 88 },
+							by_do: []
+						};
+						this.importSystems = [
+							{
+								detail_id: 1,
+								do_name: "ООО «Газпром трансгаз Москва»",
+								system_name: "АСУ ТП УКПГ-1",
+								object_name: "УКПГ-1",
+								plc_type: "Siemens S7-1500",
+								scada_type: "WinCC OA",
+								import_status: "Замещено",
+								test_stage: "Завершено"
+							},
+							{
+								detail_id: 2,
+								do_name: "ООО «Газпром трансгаз Ухта»",
+								system_name: "САУ ГПА",
+								object_name: "КЦ-3",
+								plc_type: "РТК-1000",
+								scada_type: "SCADA Pack",
+								import_status: "Испытания",
+								test_stage: "Промышленные испытания"
+							}
+						];
+					}
+				},
+
+
+				//async loadTransportConditionDetailed() {
+				//	try {
+				//		const response = await fetch(`http://localhost:8000/api/analytics/transport/condition-detailed?system_filter=${this.transportSystemFilter}`);
+				//		this.transportConditionDetailed = await response.json();
+				//		this.renderComplexConditionChart();
+				//	} catch (error) {
+				//		console.error('Ошибка загрузки реальных данных состояния:', error);
+				//	}
+				//},
+
+				// Методы для графиков покрытия СЛТМ
+				renderTransportCoverageCharts() {
+					this.renderMGCoverageChart();
+					this.renderGOCoverageChart();
+					this.renderGRSCoverageChart();
+				},
+
+				renderMGCoverageChart() {
+					const ctx = document.getElementById('mgCoverageChart');
+					console.log("Элемент mgCoverageChart:", ctx);
+
+					if (!ctx) {
+						console.error("❌ mgCoverageChart не найден в DOM!");
+						return;
+					}
+
+					if (this.charts.mgCoverage) {
+						this.charts.mgCoverage.destroy();
+					}
+
+					const data = this.transportCoverageDetailed?.mg || [];
+					console.log("Данные для МГ графика:", data);
+
+					if (data.length === 0) {
+						console.log("Нет данных для графика МГ");
+						return;
+					}
+
+					// ФОРМАТИРУЕМ ДАННЫЕ - преобразуем км в тыс. км для лучшего отображения
+					const doNames = data.map(d => d.do_name);
+					const totals = data.map(d => (d.total / 1000).toFixed(1)); // в тыс. км
+					const covered = data.map(d => (d.covered / 1000).toFixed(1)); // в тыс. км
+
+					const percentages = data.map(d => Math.round((d.covered / d.total) * 100));
+					const colors = percentages.map(p => {
+						if (p >= 80) return '#2ecc71';
+						if (p >= 50) return '#f39c12';
+						return '#e74c3c';
+					});
+
+					this.charts.mgCoverage = new Chart(ctx, {
+						type: 'bar',
+						data: {
+							labels: doNames,
+							datasets: [
+								{
+									label: 'Общая протяженность (тыс. км)',
+									data: totals,
+									backgroundColor: colors.map(c => c + '80'),
+									borderColor: colors,
+									borderWidth: 1
+								},
+								{
+									label: 'Телемеханизировано (тыс. км)',
+									data: covered,
+									backgroundColor: colors,
+									borderColor: colors,
+									borderWidth: 1
+								}
+							]
+						},
+						options: {
+							responsive: true,
+							maintainAspectRatio: false,
+							plugins: {
+								title: {
+									display: true,
+									text: 'Покрытие СЛТМ магистральных газопроводов'
+								},
+								tooltip: {
+									callbacks: {
+										label: function(context) {
+											let label = context.dataset.label || '';
+											if (label) {
+												label += ': ';
+											}
+											label += context.parsed.y + ' тыс. км';
+											return label;
+										}
+									}
+								}
+							},
+							scales: {
+								y: {
+									beginAtZero: true,
+									title: {
+										display: true,
+										text: 'Протяженность, тыс. км'
+									}
+								}
+							}
+						}
+					});
+
+					console.log("✅ График МГ создан");
+				},
+
+				renderGOCoverageChart() {
+					const ctx = document.getElementById('goCoverageChart');
+					if (!ctx) return;
+
+					if (this.charts.goCoverage) {
+						this.charts.goCoverage.destroy();
+					}
+
+					const data = this.transportCoverageDetailed?.go || [];
+
+					if (data.length === 0) return;
+
+					const doNames = data.map(d => d.do_name);
+					const totals = data.map(d => d.total);
+					const covered = data.map(d => d.covered);
+
+					const percentages = data.map(d => Math.round((d.covered / d.total) * 100));
+					const colors = percentages.map(p => {
+						if (p >= 80) return '#2ecc71';
+						if (p >= 50) return '#f39c12';
+						return '#e74c3c';
+					});
+
+					this.charts.goCoverage = new Chart(ctx, {
+						type: 'bar',
+						data: {
+							labels: doNames,
+							datasets: [
+								{
+									label: 'Общая протяженность',
+									data: totals,
+									backgroundColor: colors.map(c => c + '80'),
+									borderColor: colors,
+									borderWidth: 1
+								},
+								{
+									label: 'Телемеханизировано',
+									data: covered,
+									backgroundColor: colors,
+									borderColor: colors,
+									borderWidth: 1
+								}
+							]
+						},
+						options: {
+							responsive: true,
+							maintainAspectRatio: false,
+							plugins: {
+								title: {
+									display: true,
+									text: 'Покрытие СЛТМ газопроводов-отводов'
+								}
+							},
+							scales: {
+								y: {
+									beginAtZero: true,
+									title: {
+										display: true,
+										text: 'Протяженность, км'
+									}
+								}
+							}
+						}
+					});
+				},
+
+				renderGRSCoverageChart() {
+					const ctx = document.getElementById('grsCoverageChart');
+					if (!ctx) return;
+
+					if (this.charts.grsCoverage) {
+						this.charts.grsCoverage.destroy();
+					}
+
+					const data = this.transportCoverageDetailed?.grs || [];
+
+					if (data.length === 0) return;
+
+					const doNames = data.map(d => d.do_name);
+					const totals = data.map(d => d.total);
+					const covered = data.map(d => d.covered);
+					const notCovered = totals.map((total, index) => total - covered[index]);
+
+					this.charts.grsCoverage = new Chart(ctx, {
+						type: 'bar',
+						data: {
+							labels: doNames,
+							datasets: [
+								{
+									label: 'Телемеханизировано',
+									data: covered,
+									backgroundColor: '#2ecc71'
+								},
+								{
+									label: 'Не телемеханизировано',
+									data: notCovered,
+									backgroundColor: '#e74c3c'
+								}
+							]
+						},
+						options: {
+							responsive: true,
+							maintainAspectRatio: false,
+							plugins: {
+								title: {
+									display: true,
+									text: 'Обеспеченность ГРС'
+								}
+							},
+							scales: {
+								y: {
+									beginAtZero: true,
+									title: {
+										display: true,
+										text: 'Количество ГРС'
+									}
+								}
+							}
+						}
+					});
+				},
+
+
+
+
+
+
+
+
+
+
+				// ДОБАВИТЬ метод для классов статусов
+				getStatusClass(status) {
+					const classes = {
+						'Замещено': 'bg-success',
+						'Испытания': 'bg-warning',
+						'Не указан': 'bg-secondary',
+						'Не замещено': 'bg-danger'
+					};
+					return classes[status] || 'bg-secondary';
+				},
+
+
+
+
+
+
+
+                // Вспомогательные методы
+                getAgeProgressClass(ageGroup) {
+                    if (ageGroup === '0-5 лет') return 'bg-success';
+                    if (ageGroup === '6-10 лет') return 'bg-info';
+                    if (ageGroup === '11-15 лет') return 'bg-warning';
+                    return 'bg-danger';
+                },
+
+                getAgePercentage(ageGroup) {
+                    const total = this.ageStats.reduce((sum, item) => sum + item.count, 0);
+                    return total > 0 ? (ageGroup.count / total) * 100 : 0;
+                },
+
+                getFunctionalityClass(value) {
+                    if (!value) return 'bg-secondary';
+                    if (value >= 80) return 'bg-success';
+                    if (value >= 50) return 'bg-warning';
+                    return 'bg-danger';
+                },
+
+                getWearClass(value) {
+                    if (!value) return 'bg-secondary';
+                    if (value <= 30) return 'bg-success';
+                    if (value <= 70) return 'bg-warning';
+                    return 'bg-danger';
+                },
+
+                // Инициализация графиков
+                initCharts() {
+                    if (this.activeTab === 'analytics') {
+                        this.initAnalyticsCharts();
+                    }
+                },
+
+                initAnalyticsCharts() {
+					console.log("initAnalyticsCharts вызван, analyticsTab =", this.analyticsTab);
+                    switch (this.analyticsTab) {
+                        case 'dobycha':
+                            this.renderDobychaCharts();
+                            break;
+                        case 'transport':
+							console.log("Рендерим графики транспорта");
+                            this.renderTransportCharts();
+                            break;
+                        case 'age':
+                            this.renderAgeCharts();
+                            break;
+                    }
+                },
+
+                initDOCharts() {
+                    if (this.doDetailsTab === 'overview') {
+                        this.renderDOSystemTypesChart();
+                        this.renderDOAgeDistributionChart();
+                    }
+                },
+
+                // Графики аналитики
+                renderDobychaCharts() {
+                    // График покрытия скважин
+                    if (this.dobychaData.length > 0) {
+                        this.renderDobychaCoverageChart();
+                    }
+                },
+
+                renderTransportCharts() {
+                    // Графики покрытия трубопроводов
+                    this.renderTransportCoverageCharts();
+                },
+
+                renderAgeCharts() {
+                    // График распределения по возрастам
+                    if (this.ageStats.length > 0) {
+                        this.renderAgeDistributionChart();
+                    }
+                },
+
+                // Конкретные реализации графиков
+                renderDobychaCoverageChart() {
+                    const ctx = document.getElementById('dobychaCoverageChart').getContext('2d');
+
+                    if (this.charts.dobychaCoverage) {
+                        this.charts.dobychaCoverage.destroy();
+                    }
+
+                    // Пример реализации - нужно адаптировать под реальные данные
+                    this.charts.dobychaCoverage = new Chart(ctx, {
+                        type: 'bar',
+                        data: {
+                            labels: this.dobychaData.map(item => item.do_name),
+                            datasets: [{
+                                label: 'Телемеханизировано',
+                                data: this.dobychaData.map(item => item.wells_count || 0),
+                                backgroundColor: '#28a745'
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                title: {
+                                    display: true,
+                                    text: 'Покрытие СА скважин'
+                                }
+                            }
+                        }
+                    });
+                },
+
+                renderTransportCoverageCharts() {
+					console.log("renderTransportCoverageCharts вызван");
+					this.renderMGCoverageChart();
+					this.renderGOCoverageChart();
+					this.renderGRSCoverageChart();
+					this.renderTransportConditionChart(); // ДОБАВЬТЕ ЭТУ СТРОЧКУ
+				},
+
+                renderMGCoverageChart() {
+                    const ctx = document.getElementById('mgCoverageChart').getContext('2d');
+                    // Реализация аналогичная Tkinter с stacked bars и цветами
+                },
+
+                renderAgeDistributionChart() {
+                    const ctx = document.getElementById('ageDistributionChart').getContext('2d');
+
+                    if (this.charts.ageDistribution) {
+                        this.charts.ageDistribution.destroy();
+                    }
+
+                    this.charts.ageDistribution = new Chart(ctx, {
+                        type: 'doughnut',
+                        data: {
+                            labels: this.ageStats.map(item => item.age_group),
+                            datasets: [{
+                                data: this.ageStats.map(item => item.count),
+                                backgroundColor: [
+                                    '#28a745', '#17a2b8', '#ffc107', '#dc3545'
+                                ]
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: {
+                                    position: 'bottom'
+                                }
+                            }
+                        }
+                    });
+                },
+
+                // Графики детальной страницы ДО
+                renderDOSystemTypesChart() {
+                    const ctx = document.getElementById('doSystemTypesChart').getContext('2d');
+
+                    if (this.charts.doSystemTypes) {
+                        this.charts.doSystemTypes.destroy();
+                    }
+
+                    if (this.currentDO?.system_stats) {
+                        this.charts.doSystemTypes = new Chart(ctx, {
+                            type: 'pie',
+                            data: {
+                                labels: this.currentDO.system_stats.map(item => item.system_type || 'Не указан'),
+                                datasets: [{
+                                    data: this.currentDO.system_stats.map(item => item.count),
+                                    backgroundColor: [
+                                        '#0047BB', '#28a745', '#ffc107', '#dc3545', '#6c757d',
+                                        '#17a2b8', '#6610f2', '#e83e8c', '#fd7e14', '#20c997'
+                                    ]
+                                }]
+                            },
+                            options: {
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                plugins: {
+                                    legend: {
+                                        position: 'right'
+                                    },
+                                    title: {
+                                        display: true,
+                                        text: 'Распределение по типам систем'
+                                    }
+                                }
+                            }
+                        });
+                    }
+                },
+
+                renderDOAgeDistributionChart() {
+                    const ctx = document.getElementById('doAgeDistributionChart').getContext('2d');
+
+                    if (this.charts.doAgeDistribution) {
+                        this.charts.doAgeDistribution.destroy();
+                    }
+
+                    if (this.currentDO?.age_distribution) {
+                        this.charts.doAgeDistribution = new Chart(ctx, {
+                            type: 'bar',
+                            data: {
+                                labels: this.currentDO.age_distribution.map(item => item.age_group),
+                                datasets: [{
+                                    label: 'Количество систем',
+                                    data: this.currentDO.age_distribution.map(item => item.count),
+                                    backgroundColor: [
+                                        '#28a745', '#17a2b8', '#ffc107', '#dc3545'
+                                    ]
+                                }]
+                            },
+                            options: {
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                plugins: {
+                                    title: {
+                                        display: true,
+                                        text: 'Возрастное распределение систем'
+                                    }
+                                }
+                            }
+                        });
+                    }
+                },
+
+                updateTransportCharts() {
+                    // Обновление графиков транспорта при изменении фильтра
+                    this.renderTransportConditionChart();
+                },
+
+                renderTransportConditionChart() {
+					console.log("=== РЕНДЕРИМ ГРАФИК ТЕХНИЧЕСКОГО СОСТОЯНИЯ ===");
+					const ctx = document.getElementById('transportConditionChart');
+
+					if (!ctx) {
+						console.error("❌ transportConditionChart не найден!");
+						return;
+					}
+
+					if (this.charts.transportCondition) {
+						this.charts.transportCondition.destroy();
+					}
+
+					// Временные тестовые данные
+					const testData = {
+						labels: ['ДО 1', 'ДО 2', 'ДО 3', 'ДО 4'],
+						datasets: [
+							{
+								label: 'Системы до 12 лет',
+								data: [15, 25, 18, 30],
+								backgroundColor: 'rgba(75, 192, 192, 0.7)',
+								stack: 'Stack 0'
+							},
+							{
+								label: 'Системы 12-24 года',
+								data: [20, 15, 25, 18],
+								backgroundColor: 'rgba(255, 159, 64, 0.7)',
+								stack: 'Stack 0'
+							},
+							{
+								label: 'Системы более 25 лет',
+								data: [5, 10, 8, 12],
+								backgroundColor: 'rgba(255, 99, 132, 0.7)',
+								stack: 'Stack 0'
+							}
+						]
+					};
+
+					this.charts.transportCondition = new Chart(ctx.getContext('2d'), {
+						type: 'bar',
+						data: testData,
+						options: {
+							responsive: true,
+							maintainAspectRatio: false,
+							plugins: {
+								title: {
+									display: true,
+									text: 'Техническое состояние систем (тестовые данные)'
+								}
+							},
+							scales: {
+								x: {
+									stacked: true,
+								},
+								y: {
+									stacked: true,
+									title: {
+										display: true,
+										text: 'Количество систем'
+									}
+								}
+							}
+						}
+					});
+
+					console.log("✅ График технического состояния создан!");
+
+                }
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>
