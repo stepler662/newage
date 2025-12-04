@@ -510,8 +510,8 @@
                 </div>
             </div>
 
-            <!-- Импортозамещение - ПЕРЕМЕСТИТЬ на правильный уровень -->
-			<div v-if="activeTab === 'import-substitution'" class="tab-content">
+            <!-- Импортозамещение -->
+            <div v-if="activeTab === 'import-substitution'" class="tab-content">
 				<div class="row mb-4">
 					<div class="col-12">
 						<h4><i class="bi bi-arrow-left-right text-success"></i> Импортозамещение</h4>
@@ -562,14 +562,15 @@
 										<th>Тип ПЛК</th>
 										<th>SCADA</th>
 
-										<th> class "position-relative">
+										<th class= "position-relative">
                                             Статус
                                             <button
                                                 type="button"
                                                 class="btn btn-sm btn-outline-secondary ms-2 py-0 px-1 border-0"
                                                 style="width: 20px; height: 20px;"
                                                 @click="showStatusDropdown = !showStatusDropdown"
-                                                :aria-expanded=""></button>
+                                                :aria-expanded="showStatusDropdown">
+                                            </button>
                                         </th>
 										<th>Этап испытаний</th>
 									</tr>
@@ -594,7 +595,7 @@
 					</div>
 				</div>
 			</div>
-        </div>
+
 
         <!-- Детальная страница ДО -->
         <div v-if="currentPage === 'do-details'" class="do-details-page">
@@ -815,6 +816,7 @@
                 </div>
             </div>
         </div>
+        </div>
     </div>
 
     <!-- Bootstrap JS -->
@@ -856,6 +858,8 @@
 						by_do: []
 					},
 					importSystems: [],
+                    importStatusFilter: 'Все',
+                    showStatusDropdown: false,
 
                     // Фильтры
                     transportSystemFilter: 'Все системы',
@@ -870,11 +874,8 @@
 
                     // Текущая дата
                     currentDate: new Date().toLocaleDateString('ru-RU')
-
-                    // Фильтр по статусу импортозамещения
-                    importStatusFilter: 'Все',
                 }
-                showStatusDropdown: false,
+
             },
             computed: {
                 totalDO() {
