@@ -5,6 +5,8 @@ from fastapi.responses import JSONResponse, FileResponse
 import sqlite3
 from datetime import datetime
 from typing import List, Optional
+from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 import json
 
@@ -96,6 +98,202 @@ async def get_do_summary(do_id: int):
     except Exception as e:
         return JSONResponse(
             content={"total_systems": 0, "automation_level": 0, "avg_age": 0, "problem_count": 0, "system_types": 0}
+        )
+
+
+@app.get("/api/do/{do_id}/full-details")
+async def get_do_full_details(do_id: int):
+    """Полная детальная информация о ДО"""
+    try:
+        conn = sqlite3.connect("do_system.db")
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+
+        # 1. Основная информация о ДО
+        cursor.execute("SELECT id, name FROM do WHERE id = ?", (do_id,))
+        do_row = cursor.fetchone()
+
+        if not do_row:
+            raise HTTPException(status_code=404, detail="ДО не найдена")
+
+        do_info = dict(do_row)
+
+        # 2. KPI метрики (уже есть в summary, но дублируем)
+        cursor.execute("""
+            SELECT 
+                COUNT(*) as total_systems,
+                AVG(CAST(json_extract(detail_json, '$."Функциональность, %"') AS REAL)) as automation_level,
+                AVG(2024 - CAST(json_extract(detail_json, '$."Год внедрения системы автоматизации"') AS INTEGER)) as avg_age,
+                SUM(CASE WHEN CAST(json_extract(detail_json, '$."Эксплуатационный износ"') AS REAL) > 70 THEN 1 ELSE 0 END) as problem_count
+            FROM sa_data_details sdd
+            JOIN sa_data sd ON sdd.sa_data_id = sd.id  
+            JOIN sa s ON sd.sa_id = s.id
+            WHERE s.do_id = ?
+        """, (do_id,))
+
+        kpi_row = cursor.fetchone()
+        kpi = {
+            "total_systems": kpi_row['total_systems'] if kpi_row else 0,
+            "automation_level": round(kpi_row['automation_level'] or 0, 1) if kpi_row else 0,
+            "avg_age": round(kpi_row['avg_age'] or 0, 1) if kpi_row else 0,
+            "problem_count": kpi_row['problem_count'] or 0 if kpi_row else 0
+        }
+
+        # 3. Статистика по типам систем
+        cursor.execute("""
+            SELECT 
+                json_extract(detail_json, '$."Вид системы автоматизации"') as system_type,
+                COUNT(*) as count
+            FROM sa_data_details sdd
+            JOIN sa_data sd ON sdd.sa_data_id = sd.id  
+            JOIN sa s ON sd.sa_id = s.id
+            WHERE s.do_id = ?
+                AND json_extract(detail_json, '$."Вид системы автоматизации"') IS NOT NULL
+                AND json_extract(detail_json, '$."Вид системы автоматизации"') != ''
+            GROUP BY json_extract(detail_json, '$."Вид системы автоматизации"')
+            ORDER BY count DESC
+        """, (do_id,))
+
+        system_stats = [{"system_type": row['system_type'], "count": row['count']}
+                        for row in cursor.fetchall()]
+
+        # 4. Возрастное распределение
+        cursor.execute("""
+            SELECT 
+                CASE 
+                    WHEN (2024 - CAST(json_extract(detail_json, '$."Год внедрения системы автоматизации"') AS INTEGER)) <= 5 THEN '0-5 лет'
+                    WHEN (2024 - CAST(json_extract(detail_json, '$."Год внедрения системы автоматизации"') AS INTEGER)) <= 10 THEN '6-10 лет'
+                    WHEN (2024 - CAST(json_extract(detail_json, '$."Год внедрения системы автоматизации"') AS INTEGER)) <= 15 THEN '11-15 лет'
+                    ELSE '16+ лет'
+                END as age_group,
+                COUNT(*) as count
+            FROM sa_data_details sdd
+            JOIN sa_data sd ON sdd.sa_data_id = sd.id  
+            JOIN sa s ON sd.sa_id = s.id
+            WHERE s.do_id = ?
+                AND json_extract(detail_json, '$."Год внедрения системы автоматизации"') IS NOT NULL
+                AND CAST(json_extract(detail_json, '$."Год внедрения системы автоматизации"') AS INTEGER) > 0
+            GROUP BY age_group
+            ORDER BY 
+                CASE age_group
+                    WHEN '0-5 лет' THEN 1
+                    WHEN '6-10 лет' THEN 2
+                    WHEN '11-15 лет' THEN 3
+                    WHEN '16+ лет' THEN 4
+                END
+        """, (do_id,))
+
+        age_distribution = [{"age_group": row['age_group'], "count": row['count']}
+                            for row in cursor.fetchall()]
+
+        # 5. Проблемные системы (износ > 70% или функциональность < 50%)
+        cursor.execute("""
+            SELECT 
+                json_extract(detail_json, '$."Наименование объекта"') as object_name,
+                json_extract(detail_json, '$."Вид системы автоматизации"') as system_type,
+                json_extract(detail_json, '$."Год внедрения системы автоматизации"') as install_year,
+                CAST(json_extract(detail_json, '$."Эксплуатационный износ"') AS REAL) as wear,
+                CAST(json_extract(detail_json, '$."Функциональность, %"') AS REAL) as functionality
+            FROM sa_data_details sdd
+            JOIN sa_data sd ON sdd.sa_data_id = sd.id  
+            JOIN sa s ON sd.sa_id = s.id
+            WHERE s.do_id = ?
+                AND (
+                    CAST(json_extract(detail_json, '$."Эксплуатационный износ"') AS REAL) > 70
+                    OR CAST(json_extract(detail_json, '$."Функциональность, %"') AS REAL) < 50
+                )
+            LIMIT 10
+        """, (do_id,))
+
+        problem_systems = [
+            {
+                "object_name": row['object_name'] or "Не указан",
+                "system_type": row['system_type'] or "Не указан",
+                "install_year": row['install_year'] or "Не указан",
+                "wear": round(row['wear'] or 0, 1),
+                "functionality": round(row['functionality'] or 0, 1)
+            }
+            for row in cursor.fetchall()
+        ]
+
+        conn.close()
+
+        # 6. Формируем ответ
+        full_details = {
+            "do_info": do_info,
+            "kpi": kpi,
+            "system_stats": system_stats,
+            "age_distribution": age_distribution,
+            "problem_systems": problem_systems
+        }
+
+        return JSONResponse(content=full_details)
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error in full-details: {str(e)}")
+        return JSONResponse(
+            status_code=500,
+            content={"error": f"Database error: {str(e)}"}
+        )
+
+
+@app.get("/api/do/{do_id}/tech-data")
+async def get_do_tech_data(do_id: int, year: int = 2023):
+    """Технические данные ДО"""
+    try:
+        conn = sqlite3.connect("do_system.db")
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+
+        # Получаем все системы ДО с деталями
+        cursor.execute("""
+            SELECT 
+                sdd.id,
+                json_extract(detail_json, '$."Вид системы автоматизации"') as system_type,
+                json_extract(detail_json, '$."Наименование объекта"') as object_name,
+                json_extract(detail_json, '$."Год внедрения системы автоматизации"') as install_year,
+                json_extract(detail_json, '$."Функциональность, %"') as functionality,
+                json_extract(detail_json, '$."Эксплуатационный износ"') as wear,
+                json_extract(detail_json, '$."Тип ПЛК"') as plc_type,
+                json_extract(detail_json, '$."Тип SCADA"') as scada_type
+            FROM sa_data_details sdd
+            JOIN sa_data sd ON sdd.sa_data_id = sd.id  
+            JOIN sa s ON sd.sa_id = s.id
+            WHERE s.do_id = ?
+                AND json_extract(detail_json, '$."Год внедрения системы автоматизации"') IS NOT NULL
+            ORDER BY object_name
+        """, (do_id,))
+
+        details = [
+            {
+                "id": row['id'],
+                "Вид системы автоматизации": row['system_type'] or "-",
+                "Наименование объекта": row['object_name'] or "-",
+                "Год внедрения системы автоматизации": row['install_year'] or "-",
+                "Функциональность, %": row['functionality'] or 0,
+                "Эксплуатационный износ": row['wear'] or 0,
+                "Тип ПЛК": row['plc_type'] or "-",
+                "Тип SCADA": row['scada_type'] or "-"
+            }
+            for row in cursor.fetchall()
+        ]
+
+        conn.close()
+
+        response = {
+            "year": year,
+            "do_id": do_id,
+            "details": details
+        }
+
+        return JSONResponse(content=response)
+
+    except Exception as e:
+        return JSONResponse(
+            status_code=500,
+            content={"error": f"Database error: {str(e)}"}
         )
 
 # === АНАЛИТИКА ===

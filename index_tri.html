@@ -133,21 +133,6 @@
         color: #666;
         }
 
-        /* Стили для графиков */
-        .chartjs-tooltip {
-            background: rgba(0, 0, 0, 0.8) !important;
-            border-radius: 4px !important;
-            padding: 8px 12px !important;
-            color: white !important;
-            font-family: 'Segoe UI', Arial, sans-serif !important;
-        }
-
-        .chartjs-tooltip-key {
-            display: inline-block;
-            width: 10px;
-            height: 10px;
-            margin-right: 5px;
-        }
 
     </style>
 </head>
@@ -1377,6 +1362,7 @@
                     .filter(age => age.age_group === '16+ лет')
                     .reduce((sum, age) => sum + age.count, 0);
             },
+
             filteredImportSystems() {
                 if (this.importStatusFilter === 'Все') {
                     return this.importSystems;
@@ -1384,8 +1370,8 @@
                 return this.importSystems.filter(
                     sys => sys.import_status === this.importStatusFilter
                 );
-            }
-        },
+
+            },
 
         async mounted() {
             await this.loadAllData();
@@ -1579,263 +1565,112 @@
                 console.log("3. Активная вкладка:", this.activeTab);
             },
 
-            // ВЕРХОЯТНОСТНЫЙ ГРАФИК (ИСПРАВЛЕННАЯ ВЕРСИЯ)
             buildCalculatorChart(result) {
-                // Подождать обновления DOM
-                this.$nextTick(() => {
-                    const ctx = document.getElementById('calculatorChart');
-                    if (!ctx) return;
+            // Подождать обновления DOM
+            this.$nextTick(() => {
+                const ctx = document.getElementById('calculatorChart');
+                if (!ctx) return;
 
-                    // Удалить предыдущий график если есть
-                    if (this.calculatorChart) {
-                        this.calculatorChart.destroy();
-                    }
+                // Удалить предыдущий график если есть
+                if (this.calculatorChart) {
+                    this.calculatorChart.destroy();
+                }
 
-                    // Получить данные для графика
-                    const lambda = result.probabilisticLambda || 0.15;
-                    const analysisTime = this.calculatorTime || 3;
+                // Получить данные для графика
+                const lambda = result.probabilisticLambda || 0.15;
+                const analysisTime = this.calculatorTime || 3;
 
-                    // Рассчитать среднее время жизни (1/λ)
-                    const meanLife = 1 / lambda;
+                // Сгенерировать данные
+                const years = [];
+                const probabilities = [];
 
-                    // Сгенерировать данные с целыми числами по оси X
-                    const years = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
-                    const probabilities = years.map(t => (1 - Math.exp(-lambda * t)) * 100);
+                for (let t = 0; t <= 10; t += 0.2) {
+                   years.push(t);
+                    const p = (1 - Math.exp(-lambda * t)) * 100;
+                    probabilities.push(p);
+                }
 
-                    // Рассчитать Pout для времени анализа
-                    const poutAnalysis = (1 - Math.exp(-lambda * analysisTime)) * 100;
-
-                    // Рассчитать вероятность для средней жизни (при t = meanLife)
-                    const poutMeanLife = (1 - Math.exp(-lambda * meanLife)) * 100;
-
-                    // Построить график
-                    this.calculatorChart = new Chart(ctx, {
-                        type: 'line',
-                        data: {
-                            labels: years,
-                            datasets: [
-                                {
-                                    label: `P_out(t) = 1 - e^(-${lambda.toFixed(3)}·t)`,
-                                    data: probabilities,
-                                    borderColor: '#3B82F6', // синий для кривой
-                                    backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                                    borderWidth: 2,
-                                    tension: 0.3,
-                                    fill: true,
-                                    pointRadius: 0
-                                },
-                                {
-                                    // Вертикальная линия для времени анализа (красная)
-                                    type: 'line',
-                                    label: `Pout(${analysisTime} лет) = ${poutAnalysis.toFixed(1)}%`,
-                                    data: years.map((t, index) => {
-                                        return t === analysisTime ? poutAnalysis : null;
-                                    }),
-                                    backgroundColor: '#EF4444',
-                                    borderColor: '#EF4444',
-                                    borderWidth: 2,
-                                    borderDash: [5, 5],
-                                    pointRadius: 6,
-                                    pointBackgroundColor: '#EF4444',
-                                    fill: false,
-                                    showLine: true
-                                },
-                                {
-                                    // Вертикальная линия для средней жизни (зеленая)
-                                    type: 'line',
-                                    label: `Средняя жизнь: ${meanLife.toFixed(2)} лет`,
-                                    data: years.map((t, index) => {
-                                        const roundedMeanLife = Math.round(meanLife);
-                                        return t === roundedMeanLife ? poutMeanLife : null;
-                                    }),
-                                    backgroundColor: '#10B981',
-                                    borderColor: '#10B981',
-                                    borderWidth: 2,
-                                    borderDash: [3, 3],
-                                    pointRadius: 6,
-                                    pointBackgroundColor: '#10B981',
-                                    fill: false,
-                                    showLine: true
+                // Построить график
+                this.calculatorChart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: years,
+                        datasets: [
+                            {
+                                label: `P_out(t) = 1 - e^(-${lambda.toFixed(3)}·t)`,
+                                data: probabilities,
+                                borderColor: '#8b5cf6',
+                                backgroundColor: 'rgba(139, 92, 246, 0.1)',
+                                borderWidth: 3,
+                                tension: 0.1,
+                                fill: true,
+                                pointRadius: 0
+                            },
+                            {
+                                label: `${analysisTime} лет`,
+                                data: years.map(t => t === analysisTime ? (1 - Math.exp(-lambda * t)) * 100 : null),
+                                backgroundColor: '#ef4444',
+                                borderColor: '#ef4444',
+                                pointRadius: 6,
+                                pointHoverRadius: 10,
+                                fill: false
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                display: true,
+                                position: 'top',
+                                labels: {
+                                    font: { size: 10 },
+                                    boxWidth: 12
                                 }
-                            ]
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        if (context.datasetIndex === 0) {
+                                        return `P(${context.label} лет) = ${context.parsed.y.toFixed(1)}%`;
+                                        }
+                                    return `P(${analysisTime} лет) = ${context.parsed.y.toFixed(1)}%`;
+                                    }
+                                }
+                            }
                         },
-                        options: {
-                            responsive: true,
-                            maintainAspectRatio: false,
-                            plugins: {
-                                legend: {
+                        scales: {
+                            x: {
+                                title: {
                                     display: true,
-                                    position: 'top',
-                                    labels: {
-                                        font: {
-                                            size: 11,
-                                            family: "'Segoe UI', Arial, sans-serif"
-                                        },
-                                        boxWidth: 12,
-                                        padding: 15
-                                    },
-                                    onClick: (e, legendItem, legend) => {
-                                        // Отключить возможность скрытия линий
-                                        return;
-                                    }
+                                    text: 'Время (лет)',
+                                    font: { size: 11 }
                                 },
-                                tooltip: {
-                                    callbacks: {
-                                        label: function(context) {
-                                            const dataset = context.dataset;
-                                            const value = context.parsed.y;
-                                            const xValue = context.label;
-
-                                            if (dataset.label.includes('Pout(')) {
-                                                return dataset.label;
-                                            } else if (dataset.label.includes('Средняя жизнь')) {
-                                                return dataset.label;
-                                            } else {
-                                                return `P(${xValue} лет) = ${value.toFixed(1)}%`;
-                                            }
-                                        }
-                                    },
-                                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                                    titleFont: { size: 12 },
-                                    bodyFont: { size: 12 },
-                                    padding: 10
-                                }
+                                grid: { display: true }
                             },
-                            scales: {
-                                x: {
-                                    title: {
-                                        display: true,
-                                        text: 'Время (лет)',
-                                        font: {
-                                            size: 12,
-                                            weight: 'bold'
-                                        },
-                                        color: '#374151'
-                                    },
-                                    grid: {
-                                        display: true,
-                                        color: 'rgba(0, 0, 0, 0.1)'
-                                    },
-                                    ticks: {
-                                        font: { size: 11 },
-                                        color: '#6B7280',
-                                        // Гарантируем целые числа
-                                        callback: function(value) {
-                                            return value % 1 === 0 ? value : '';
-                                        }
-                                    }
+                            y: {
+                                beginAtZero: true,
+                                max: 100,
+                                title: {
+                                    display: true,
+                                    text: 'Вероятность (%)',
+                                    font: { size: 11 }
                                 },
-                                y: {
-                                    beginAtZero: true,
-                                    max: 100,
-                                    title: {
-                                        display: true,
-                                        text: 'Вероятность устаревания (%)',
-                                        font: {
-                                            size: 12,
-                                            weight: 'bold'
-                                        },
-                                        color: '#374151'
+                                ticks: {
+                                    callback: function(value) {
+                                        return value + '%';
                                     },
-                                    grid: {
-                                        display: true,
-                                        color: 'rgba(0, 0, 0, 0.1)'
-                                    },
-                                    ticks: {
-                                        callback: function(value) {
-                                            return value.toFixed(0) + '%';
-                                        },
-                                        font: { size: 11 },
-                                        color: '#6B7280'
+                                    font: { size: 10 }
                                     }
                                 }
-                            },
-                            interaction: {
-                                intersect: false,
-                                mode: 'index'
-                            },
-                            animation: {
-                                duration: 750
                             }
                         }
                     });
-
-                    // Добавить всплывающие подсказки для вертикальных линий
-                    this.addChartAnnotations();
                 });
-            },
+            }
 
-            // Добавьте этот метод для аннотаций на графике
-            addChartAnnotations() {
-                if (!this.calculatorChart) return;
 
-                const chart = this.calculatorChart;
-                const analysisTime = this.calculatorTime || 3;
-                const lambda = this.calculatorResult?.probabilisticLambda || 0.15;
-                const meanLife = 1 / lambda;
-
-                // Получаем canvas элемент
-                const canvas = chart.canvas;
-                const ctx = chart.ctx;
-
-                // Функция для отрисовки аннотаций
-                const drawAnnotations = () => {
-                    const meta = chart.getDatasetMeta(1); // Первая вертикальная линия
-                    if (!meta || !meta.data) return;
-
-                    // Найти точку для времени анализа
-                    const analysisPoint = meta.data.find(point =>
-                        point && point.x && point.y
-                    );
-
-                    if (analysisPoint) {
-                        // Отметка для Pout(t)
-                        ctx.save();
-                        ctx.fillStyle = '#EF4444';
-                        ctx.font = 'bold 11px Arial';
-                        ctx.textAlign = 'center';
-                        ctx.fillText(
-                            `Pout(${analysisTime} лет) = ${(this.calculatorResult?.probability * 100 || 0).toFixed(1)}%`,
-                            analysisPoint.x,
-                            analysisPoint.y - 15
-                        );
-                        ctx.restore();
-                    }
-
-                    // Найти точку для средней жизни
-                    const meanLifeMeta = chart.getDatasetMeta(2);
-                    if (meanLifeMeta && meanLifeMeta.data) {
-                        const meanLifePoint = meanLifeMeta.data.find(point =>
-                            point && point.x && point.y
-                        );
-
-                        if (meanLifePoint) {
-                            // Отметка для средней жизни
-                            ctx.save();
-                            ctx.fillStyle = '#10B981';
-                            ctx.font = 'bold 11px Arial';
-                            ctx.textAlign = 'center';
-                            ctx.fillText(
-                                `Средняя жизнь: ${meanLife.toFixed(2)} лет`,
-                                meanLifePoint.x,
-                                meanLifePoint.y + 25
-                            );
-                            ctx.restore();
-                        }
-                    }
-                };
-
-                // Перерисовать аннотации при обновлении графика
-                chart.draw = ((originalDraw) => {
-                    return function() {
-                        originalDraw.apply(this, arguments);
-                        drawAnnotations();
-                    };
-                })(chart.draw);
-
-                // Перерисовать график с аннотациями
-                chart.update();
-            },
 
             renderTransportCharts() {
                 console.log("renderTransportCharts вызван");
@@ -2562,7 +2397,6 @@
                     probability: 1 - Math.exp(-result.lambda * this.calculatorTime),
                     recommendation: result.recommendation,
                     alertClass: this.getAlertClass(maturityLevel),
-                    probabilisticLambda: result.lambda, // Добавлено!
                     factors: {
                         R: R,
                         M: M,
