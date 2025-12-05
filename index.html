@@ -11,6 +11,8 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.0/font/bootstrap-icons.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+    <script src="https://unpkg.com/xlsx/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     <style>
         :root {
@@ -21,7 +23,9 @@
             --danger: #dc3545;
             --gray: #6c757d;
         }
-        
+
+         <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
         .do-details-page {
             background: white;
             min-height: 100vh;
@@ -32,6 +36,19 @@
             color: var(--gray);
             border: none;
             padding: 0.75rem 1.5rem;
+        }
+
+        .factor-circle {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            margin: 0 auto 5px;
+            font-size: 1.2rem;
         }
         
         .nav-tabs .nav-link.active {
@@ -80,6 +97,46 @@
             max-height: 600px;
             overflow-y: auto;
         }
+
+        .btn-outline-primary {
+        border-color: var(--gazprom-blue);
+        color: var(--gazprom-blue);
+        }
+
+        .btn-outline-primary:hover {
+         background-color: var(--gazprom-blue);
+         color: white;
+        }
+
+        .btn-primary {
+       background-color: var(--gazprom-blue);
+       border-color: var(--gazprom-blue);
+        }
+
+        .btn-primary:hover {
+        background-color: #003399;
+        border-color: #003399;
+        }
+
+        .chart-container {
+        background: white;
+        padding: 15px;
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        margin-top: 20px;
+        }
+
+        .chart-container h5 {
+        margin-bottom: 15px;
+        color: #333;
+        }
+
+        .chart-info {
+        font-size: 0.9rem;
+        color: #666;
+        }
+
+
     </style>
 </head>
 <body>
@@ -107,115 +164,126 @@
     </nav>
 
     <!-- Главный дашборд -->
-    <div v-if="currentPage === 'dashboard'" class="container-fluid mt-4">
-        <!-- Вкладки основного навигации -->
-        <ul class="nav nav-tabs mb-4">
-            <li class="nav-item">
-                <a class="nav-link" :class="{ active: activeTab === 'dashboard' }"
-                   @click="setActiveTab('dashboard')">
-                    <i class="bi bi-speedometer2"></i> Дашборд
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link" :class="{ active: activeTab === 'analytics' }"
-                   @click="setActiveTab('analytics')">
-                    <i class="bi bi-graph-up"></i> Аналитика
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link" :class="{ active: activeTab === 'import-substitution' }"
-                   @click="setActiveTab('import-substitution')">
-                    <i class="bi bi-arrow-left-right"></i> Импортозамещение
-                </a>
-            </li>
-        </ul>
+    <div v-if="currentPage === 'dashboard'">
+        <div class="container-fluid mt-4">
+            <!-- Вкладки основного навигации -->
+            <ul class="nav nav-tabs mb-4">
+                <li class="nav-item">
+                    <a class="nav-link" :class="{ active: activeTab === 'dashboard' }"
+                       @click="setActiveTab('dashboard')">
+                        <i class="bi bi-speedometer2"></i> Дашборд
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" :class="{ active: activeTab === 'analytics' }"
+                       @click="setActiveTab('analytics')">
+                        <i class="bi bi-graph-up"></i> Аналитика
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" :class="{ active: activeTab === 'import-substitution' }"
+                       @click="setActiveTab('import-substitution')">
+                        <i class="bi bi-arrow-left-right"></i> Импортозамещение
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" :class="{ active: activeTab === 'standards-assessment' }"
+                       @click="setActiveTab('standards-assessment')">
+                        <i class="bi bi-file-earmark-check"></i> Оценка стандартов
+                    </a>
+                </li>
+            </ul>
 
-        <!-- Дашборд -->
-        <div v-if="activeTab === 'dashboard'" class="tab-content">
-            <!-- Общая статистика -->
-            <div class="row mb-4">
-                <div class="col-md-2">
-                    <div class="metric-card">
-                        <div class="metric-value text-primary">{{ totalDO }}</div>
-                        <div class="metric-label">Дочерних организаций</div>
-                    </div>
-                </div>
-                <div class="col-md-2">
-                    <div class="metric-card">
-                        <div class="metric-value text-info">{{ totalSystems }}</div>
-                        <div class="metric-label">Систем автоматизации</div>
-                    </div>
-                </div>
-                <div class="col-md-2">
-                    <div class="metric-card">
-                        <div class="metric-value text-warning">{{ totalProblems }}</div>
-                        <div class="metric-label">Проблемных систем</div>
-                    </div>
-                </div>
-                <div class="col-md-2">
-                    <div class="metric-card">
-                        <div class="metric-value text-success">{{ Math.round(avgAutomation) }}%</div>
-                        <div class="metric-label">Средняя автоматизация</div>
-                    </div>
-                </div>
-                <div class="col-md-2">
-                    <div class="metric-card">
-                        <div class="metric-value" :class="avgAge > 10 ? 'text-danger' : 'text-success'">{{
-                            Math.round(avgAge) }}
+            <!-- Дашборд -->
+            <div v-if="activeTab === 'dashboard'" class="tab-content">
+                <!-- Общая статистика -->
+                <div class="row mb-4">
+                    <div class="col-md-2">
+                        <div class="metric-card">
+                            <div class="metric-value text-primary">{{ totalDO }}</div>
+                            <div class="metric-label">Дочерних организаций</div>
                         </div>
-                        <div class="metric-label">Средний возраст (лет)</div>
                     </div>
-                </div>
-                <div class="col-md-2">
-                    <div class="metric-card">
-                        <div class="metric-value text-primary">{{ systemTypes.length }}</div>
-                        <div class="metric-label">Типов систем</div>
+                    <div class="col-md-2">
+                        <div class="metric-card">
+                            <div class="metric-value text-info">{{ totalSystems }}</div>
+                            <div class="metric-label">Систем автоматизации</div>
+                        </div>
                     </div>
-                </div>
-            </div>
-
-            <!-- Карточки ДО -->
-            <div class="row">
-                <div class="col-12">
-                    <div class="card">
-                        <div class="card-header bg-white d-flex justify-content-between align-items-center">
-                            <h5 class="mb-0"><i class="bi bi-building text-primary"></i> Дочерние организации</h5>
-                            <div class="btn-group">
-                                <button class="btn btn-outline-primary btn-sm" @click="loadDOList">
-                                    <i class="bi bi-arrow-clockwise"></i>
-                                </button>
+                    <div class="col-md-2">
+                        <div class="metric-card">
+                            <div class="metric-value text-warning">{{ totalProblems }}</div>
+                            <div class="metric-label">Проблемных систем</div>
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="metric-card">
+                            <div class="metric-value text-success">{{ Math.round(avgAutomation) }}%</div>
+                            <div class="metric-label">Средняя автоматизация</div>
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="metric-card">
+                            <div class="metric-value" :class="avgAge > 10 ? 'text-danger' : 'text-success'">{{
+                                Math.round(avgAge) }}
                             </div>
+                            <div class="metric-label">Средний возраст (лет)</div>
                         </div>
-                        <div class="card-body">
-                            <div class="row">
-                                <div v-for="doItem in doList" :key="doItem.id" class="col-xl-3 col-lg-4 col-md-6 mb-3">
-                                    <div class="card h-100 do-card" @click="showDODetails(doItem.id)">
-                                        <div class="card-body">
-                                            <div class="d-flex justify-content-between align-items-start mb-2">
-                                                <h6 class="card-title text-primary mb-0">{{ doItem.name }}</h6>
-                                                <span class="badge"
-                                                      :class="doItem.summary?.problem_count > 0 ? 'bg-warning' : 'bg-success'">
+                    </div>
+                    <div class="col-md-2">
+                        <div class="metric-card">
+                            <div class="metric-value text-primary">{{ systemTypes.length }}</div>
+                            <div class="metric-label">Типов систем</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Карточки ДО -->
+                <div class="row">
+                    <div class="col-12">
+                        <div class="card">
+                            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                                <h5 class="mb-0"><i class="bi bi-building text-primary"></i> Дочерние организации</h5>
+                                <div class="btn-group">
+                                    <button class="btn btn-outline-primary btn-sm" @click="loadDOList">
+                                        <i class="bi bi-arrow-clockwise"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div v-for="doItem in doList" :key="doItem.id"
+                                         class="col-xl-3 col-lg-4 col-md-6 mb-3">
+                                        <div class="card h-100 do-card" @click="showDODetails(doItem.id)">
+                                            <div class="card-body">
+                                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                                    <h6 class="card-title text-primary mb-0">{{ doItem.name }}</h6>
+                                                    <span class="badge"
+                                                          :class="doItem.summary?.problem_count > 0 ? 'bg-warning' : 'bg-success'">
                                                         {{ doItem.summary?.problem_count > 0 ? '⚠️ ' + doItem.summary.problem_count : '✅' }}
                                                     </span>
-                                            </div>
+                                                </div>
 
-                                            <div v-if="doItem.summary" class="mt-3">
-                                                <div class="row small text-muted">
-                                                    <div class="col-6">
-                                                        <i class="bi bi-cpu"></i> {{ doItem.summary.total_systems || 0
-                                                        }}
-                                                    </div>
-                                                    <div class="col-6">
-                                                        <i class="bi bi-speedometer2"></i> {{
-                                                        Math.round(doItem.summary.automation_level || 0) }}%
-                                                    </div>
-                                                    <div class="col-6">
-                                                        <i class="bi bi-calendar"></i> {{
-                                                        Math.round(doItem.summary.avg_age || 0) }}
-                                                    </div>
-                                                    <div class="col-6">
-                                                        <i class="bi bi-activity"></i> {{ doItem.summary.problem_count
-                                                        || 0 }}
+                                                <div v-if="doItem.summary" class="mt-3">
+                                                    <div class="row small text-muted">
+                                                        <div class="col-6">
+                                                            <i class="bi bi-cpu"></i> {{ doItem.summary.total_systems ||
+                                                            0
+                                                            }}
+                                                        </div>
+                                                        <div class="col-6">
+                                                            <i class="bi bi-speedometer2"></i> {{
+                                                            Math.round(doItem.summary.automation_level || 0) }}%
+                                                        </div>
+                                                        <div class="col-6">
+                                                            <i class="bi bi-calendar"></i> {{
+                                                            Math.round(doItem.summary.avg_age || 0) }}
+                                                        </div>
+                                                        <div class="col-6">
+                                                            <i class="bi bi-activity"></i> {{
+                                                            doItem.summary.problem_count
+                                                            || 0 }}
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </div>
@@ -227,466 +295,254 @@
                     </div>
                 </div>
             </div>
-        </div>
 
-        <!-- Аналитика -->
-        <div v-if="activeTab === 'analytics'" class="tab-content">
-            <div class="row mb-4">
-                <div class="col-12">
-                    <h4><i class="bi bi-graph-up text-primary"></i> Аналитика систем автоматизации</h4>
-                </div>
-            </div>
-
-            <!-- Вкладки аналитики -->
-            <ul class="nav nav-pills mb-4">
-                <li class="nav-item">
-                    <a class="nav-link" :class="{ active: analyticsTab === 'dobycha' }"
-                       @click="setAnalyticsTab('dobycha')">Добыча</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" :class="{ active: analyticsTab === 'transport' }"
-                       @click="setAnalyticsTab('transport')">Транспорт</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" :class="{ active: analyticsTab === 'pererabotka' }"
-                       @click="setAnalyticsTab('pererabotka')">Переработка</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" :class="{ active: analyticsTab === 'phg' }"
-                       @click="setAnalyticsTab('phg')">ПХГ</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" :class="{ active: analyticsTab === 'age' }"
-                       @click="setAnalyticsTab('age')">Возраст систем</a>
-                </li>
-            </ul>
-
-            <!-- Аналитика добычи -->
-            <div v-if="analyticsTab === 'dobycha'">
-                <div class="card mb-4">
-                    <div class="card-header bg-white">
-                        <h5 class="mb-0">Технологические объекты добычи</h5>
-                    </div>
-                    <div class="card-body">
-                        <div class="table-responsive">
-                            <table class="table table-sm table-hover">
-                                <thead class="table-light">
-                                <tr>
-                                    <th>ДО</th>
-                                    <th>УКПГ, шт.</th>
-                                    <th>Скважины, шт.</th>
-                                    <th>ДКС, шт.</th>
-                                    <th>КЦ, шт.</th>
-                                    <th>ГПА, шт.</th>
-                                    <th>ЦДП, шт.</th>
-                                    <th>ДП, шт.</th>
-                                </tr>
-                                </thead>
-                                <tbody>
-                                <tr v-for="item in dobychaData" :key="item.do_name">
-                                    <td><strong>{{ item.do_name }}</strong></td>
-                                    <td>{{ item.ukpg_count || 0 }}</td>
-                                    <td>{{ item.wells_count || 0 }}</td>
-                                    <td>{{ item.dks_count || 0 }}</td>
-                                    <td>{{ item.kc_count || 0 }}</td>
-                                    <td>{{ item.gpa_count || 0 }}</td>
-                                    <td>{{ item.cdp_count || 0 }}</td>
-                                    <td>{{ item.dp_count || 0 }}</td>
-                                </tr>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Графики добычи -->
-                <div class="row">
-                    <div class="col-md-6">
-                        <div class="card">
-                            <div class="card-header bg-white">
-                                <h6 class="mb-0">Покрытие СА скважин</h6>
-                            </div>
-                            <div class="card-body">
-                                <div class="chart-container">
-                                    <canvas id="dobychaCoverageChart"></canvas>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-6">
-                        <div class="card">
-                            <div class="card-header bg-white">
-                                <h6 class="mb-0">Техническое состояние систем</h6>
-                            </div>
-                            <div class="card-body">
-                                <div class="chart-container">
-                                    <canvas id="dobychaConditionChart"></canvas>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Аналитика транспорта -->
-            <div v-if="analyticsTab === 'transport'">
-                <!-- Таблица технологических объектов -->
-                <div class="card mb-4">
-                    <div class="card-header bg-white">
-                        <h5 class="mb-0">Технологические объекты транспорта</h5>
-                    </div>
-                    <div class="card-body">
-                        <div class="table-responsive scrollable-table">
-                            <table class="table table-sm table-hover">
-                                <thead class="table-light">
-                                <tr>
-                                    <th>ДО</th>
-                                    <th>МГ, км</th>
-                                    <th>ГО, км</th>
-                                    <th>ГРС, шт.</th>
-                                    <th>КС, шт.</th>
-                                    <th>КЦ, шт.</th>
-                                    <th>ГПА, шт.</th>
-                                    <th>ЦДП, шт.</th>
-                                    <th>ДП ЛПУ, шт.</th>
-                                </tr>
-                                </thead>
-                                <tbody>
-                                <tr v-for="item in transportData" :key="item.do_name">
-                                    <td><strong>{{ item.do_name }}</strong></td>
-                                    <td>{{ item.mg_length || 0 }}</td>
-                                    <td>{{ item.go_length || 0 }}</td>
-                                    <td>{{ item.grs_count || 0 }}</td>
-                                    <td>{{ item.ks_count || 0 }}</td>
-                                    <td>{{ item.kc_count || 0 }}</td>
-                                    <td>{{ item.gpa_count || 0 }}</td>
-                                    <td>{{ item.cdp_count || 0 }}</td>
-                                    <td>{{ item.dp_count || 0 }}</td>
-                                </tr>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Графики транспорта -->
+            <!-- Аналитика -->
+            <div v-if="activeTab === 'analytics'" class="tab-content">
                 <div class="row mb-4">
-                    <div class="col-md-6">
-                        <div class="card">
-                            <div class="card-header bg-white">
-                                <h6 class="mb-0">Покрытие СЛТМ магистральных газопроводов</h6>
-                            </div>
-                            <div class="card-body">
-                                <div class="chart-container">
-                                    <canvas id="mgCoverageChart"></canvas>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-6">
-                        <div class="card">
-                            <div class="card-header bg-white">
-                                <h6 class="mb-0">Покрытие СЛТМ газопроводов-отводов</h6>
-                            </div>
-                            <div class="card-body">
-                                <div class="chart-container">
-                                    <canvas id="goCoverageChart"></canvas>
-                                </div>
-                            </div>
-                        </div>
+                    <div class="col-12">
+                        <h4><i class="bi bi-graph-up text-primary"></i> Аналитика систем автоматизации</h4>
                     </div>
                 </div>
 
-                <div class="card mb-4">
-                    <div class="card-header bg-white">
-                        <h5 class="mb-0">Тестирование графиков</h5>
-                    </div>
-                    <div class="card-body">
-                        <button class="btn btn-primary me-2" @click="debugGraphics">Диагностика</button>
-                        <button class="btn btn-success me-2" @click="loadTransportCoverageDetailed">Загрузить данные
-                        </button>
-                        <button class="btn btn-warning" @click="renderTransportCoverageCharts">Нарисовать графики
-                        </button>
-                    </div>
-                </div>
+                <!-- Вкладки аналитики -->
+                <ul class="nav nav-pills mb-4">
+                    <li class="nav-item">
+                        <a class="nav-link" :class="{ active: analyticsTab === 'dobycha' }"
+                           @click="setAnalyticsTab('dobycha')">Добыча</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" :class="{ active: analyticsTab === 'transport' }"
+                           @click="setAnalyticsTab('transport')">Транспорт</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" :class="{ active: analyticsTab === 'pererabotka' }"
+                           @click="setAnalyticsTab('pererabotka')">Переработка</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" :class="{ active: analyticsTab === 'phg' }"
+                           @click="setAnalyticsTab('phg')">ПХГ</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" :class="{ active: analyticsTab === 'age' }"
+                           @click="setAnalyticsTab('age')">Возраст систем</a>
+                    </li>
+                </ul>
 
-
-                <div class="row">
-                    <div class="col-md-6">
-                        <div class="card">
-                            <div class="card-header bg-white">
-                                <h6 class="mb-0">Обеспеченность ГРС</h6>
-                            </div>
-                            <div class="card-body">
-                                <div class="chart-container">
-                                    <canvas id="grsCoverageChart"></canvas>
-                                </div>
+                <!-- Аналитика добычи -->
+                <div v-if="analyticsTab === 'dobycha'">
+                    <div class="card mb-4">
+                        <div class="card-header bg-white">
+                            <h5 class="mb-0">Технологические объекты добычи</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-sm table-hover">
+                                    <thead class="table-light">
+                                    <tr>
+                                        <th>ДО</th>
+                                        <th>УКПГ, шт.</th>
+                                        <th>Скважины, шт.</th>
+                                        <th>ДКС, шт.</th>
+                                        <th>КЦ, шт.</th>
+                                        <th>ГПА, шт.</th>
+                                        <th>ЦДП, шт.</th>
+                                        <th>ДП, шт.</th>
+                                    </tr>
+                                    </thead>
+                                    <tbody>
+                                    <tr v-for="item in dobychaData" :key="item.do_name">
+                                        <td><strong>{{ item.do_name }}</strong></td>
+                                        <td>{{ item.ukpg_count || 0 }}</td>
+                                        <td>{{ item.wells_count || 0 }}</td>
+                                        <td>{{ item.dks_count || 0 }}</td>
+                                        <td>{{ item.kc_count || 0 }}</td>
+                                        <td>{{ item.gpa_count || 0 }}</td>
+                                        <td>{{ item.cdp_count || 0 }}</td>
+                                        <td>{{ item.dp_count || 0 }}</td>
+                                    </tr>
+                                    </tbody>
+                                </table>
                             </div>
                         </div>
                     </div>
-                    <div class="col-md-6">
-                        <div class="card">
-                            <div class="card-header bg-white d-flex justify-content-between align-items-center">
-                                <h6 class="mb-0">Техническое состояние</h6>
-                                <select class="form-select form-select-sm" style="width: auto;"
-                                        v-model="transportSystemFilter" @change="updateTransportCharts">
-                                    <option value="Все системы">Все системы</option>
-                                    <option value="АСУ ТП УКПГ (УППГ)">АСУ ТП УКПГ</option>
-                                    <option value="АСУ ТП">АСУ ТП</option>
-                                    <option value="САУ ГПА">САУ ГПА</option>
-                                    <option value="АСПС">АСПС</option>
-                                    <option value="СТМ">СТМ</option>
-                                </select>
-                            </div>
-                            <div class="card-body">
-                                <div class="chart-container">
-                                    <canvas id="transportConditionChart"></canvas>
+
+                    <!-- Графики добычи -->
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header bg-white">
+                                    <h6 class="mb-0">Покрытие СА скважин</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="chart-container">
+                                        <canvas id="dobychaCoverageChart"></canvas>
+                                    </div>
                                 </div>
                             </div>
                         </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Переработка и ПХГ -->
-            <div v-if="analyticsTab === 'pererabotka' || analyticsTab === 'phg'">
-                <div class="card">
-                    <div class="card-header bg-white">
-                        <h5 class="mb-0">
-                            <i class="bi bi-tools"></i>
-                            {{ analyticsTab === 'pererabotka' ? 'Переработка' : 'ПХГ' }} - в разработке
-                        </h5>
-                    </div>
-                    <div class="card-body text-center py-5">
-                        <i class="bi bi-gear-fill display-1 text-muted"></i>
-                        <h4 class="text-muted mt-3">Раздел в разработке</h4>
-                        <p class="text-muted">Данный модуль находится в стадии активной разработки</p>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Возраст систем -->
-            <div v-if="analyticsTab === 'age'">
-                <div class="row">
-                    <div class="col-md-6">
-                        <div class="card">
-                            <div class="card-header bg-white">
-                                <h6 class="mb-0">Распределение систем по возрасту</h6>
-                            </div>
-                            <div class="card-body">
-                                <div class="chart-container">
-                                    <canvas id="ageDistributionChart"></canvas>
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header bg-white">
+                                    <h6 class="mb-0">Техническое состояние систем</h6>
                                 </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-6">
-                        <div class="card">
-                            <div class="card-header bg-white">
-                                <h6 class="mb-0">Детализация по возрастным группам</h6>
-                            </div>
-                            <div class="card-body">
-                                <div class="table-responsive">
-                                    <table class="table table-sm">
-                                        <thead>
-                                        <tr>
-                                            <th>Возрастная группа</th>
-                                            <th>Количество систем</th>
-                                            <th>Доля</th>
-                                        </tr>
-                                        </thead>
-                                        <tbody>
-                                        <tr v-for="ageGroup in ageStats" :key="ageGroup.age_group">
-                                            <td>{{ ageGroup.age_group }}</td>
-                                            <td>{{ ageGroup.count }}</td>
-                                            <td>
-                                                <div class="progress" style="height: 20px;">
-                                                    <div class="progress-bar"
-                                                         :class="getAgeProgressClass(ageGroup.age_group)"
-                                                         :style="{ width: getAgePercentage(ageGroup) + '%' }">
-                                                        {{ Math.round(getAgePercentage(ageGroup)) }}%
-                                                    </div>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                        </tbody>
-                                    </table>
+                                <div class="card-body">
+                                    <div class="chart-container">
+                                        <canvas id="dobychaConditionChart"></canvas>
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
-            </div>
-        </div>
 
-        <!-- Импортозамещение -->
-        <div v-if="activeTab === 'import-substitution'" class="tab-content">
-            <div class="row mb-4">
-                <div class="col-12">
-                    <h4><i class="bi bi-arrow-left-right text-success"></i> Импортозамещение</h4>
-                </div>
-            </div>
-
-            <!-- Статистика -->
-            <div class="row mb-4">
-                <div class="col-md-3">
-                    <div class="stat-card text-center">
-                        <h3 class="text-primary">{{ importStats.overall.total || 0 }}</h3>
-                        <small class="text-muted">Всего систем</small>
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="stat-card text-center">
-                        <h3 class="text-success">{{ importStats.overall.substituted || 0 }}</h3>
-                        <small class="text-muted">Замещено</small>
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="stat-card text-center">
-                        <h3 class="text-warning">{{ importStats.overall.testing || 0 }}</h3>
-                        <small class="text-muted">На испытаниях</small>
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="stat-card text-center">
-                        <h3 class="text-danger">{{ importStats.overall.not_substituted || 0 }}</h3>
-                        <small class="text-muted">Не замещено</small>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Таблица систем -->
-            <div class="card">
-                <div class="card-header bg-white">
-                    <h5 class="mb-0">Системы импортозамещения</h5>
-                </div>
-                <div class="card-body">
-                    <div class="table-responsive scrollable-table">
-                        <table class="table table-sm table-hover">
-                            <thead class="table-light">
-                            <tr>
-                                <th>ДО</th>
-                                <th>Система</th>
-                                <th>Объект</th>
-                                <th>Тип ПЛК</th>
-                                <th>SCADA</th>
-
-                                <th class="position-relative">
-                                    Статус
-                                    <button
-                                            type="button"
-                                            class="btn btn-sm btn-outline-secondary ms-2 py-0 px-1 border-0"
-                                            style="width: 20px; height: 20px;"
-                                            @click="showStatusDropdown = !showStatusDropdown"
-                                            :aria-expanded="showStatusDropdown">
-                                    </button>
-                                </th>
-                                <th>Этап испытаний</th>
-                            </tr>
-                            </thead>
-                            <tbody>
-                            <tr v-for="system in importSystems" :key="system.detail_id">
-                                <td>{{ system.do_name }}</td>
-                                <td>{{ system.system_name }}</td>
-                                <td>{{ system.object_name }}</td>
-                                <td>{{ system.plc_type || '-' }}</td>
-                                <td>{{ system.scada_type || '-' }}</td>
-                                <td>
-											<span class="badge" :class="getStatusClass(system.import_status)">
-												{{ system.import_status }}
-											</span>
-                                </td>
-                                <td>{{ system.test_stage || '-' }}</td>
-                            </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-
-    <!-- Детальная страница ДО -->
-    <div v-if="currentPage === 'do-details'" class="do-details-page">
-        <div class="container-fluid py-4">
-            <!-- Шапка детальной страницы -->
-            <div class="row mb-4">
-                <div class="col-12">
-                    <div class="d-flex justify-content-between align-items-start">
-                        <div>
-                            <h2 class="text-primary mb-2">
-                                <i class="bi bi-building"></i> {{ currentDO?.do_info?.name }}
-                            </h2>
-                            <p class="text-muted mb-0">Детальная информация по дочерней организации</p>
+                <!-- Аналитика транспорта -->
+                <div v-if="analyticsTab === 'transport'">
+                    <!-- Таблица технологических объектов -->
+                    <div class="card mb-4">
+                        <div class="card-header bg-white">
+                            <h5 class="mb-0">Технологические объекты транспорта</h5>
                         </div>
-                        <div>
-                            <button class="btn btn-outline-primary me-2" @click="loadDODetails(currentDO.do_info.id)">
-                                <i class="bi bi-arrow-clockwise"></i> Обновить
-                            </button>
-                            <button class="btn btn-primary" @click="showDashboard">
-                                <i class="bi bi-list-ul"></i> К списку ДО
-                            </button>
+                        <div class="card-body">
+                            <div class="table-responsive scrollable-table">
+                                <table class="table table-sm table-hover">
+                                    <thead class="table-light">
+                                    <tr>
+                                        <th>ДО</th>
+                                        <th>МГ, км</th>
+                                        <th>ГО, км</th>
+                                        <th>ГРС, шт.</th>
+                                        <th>КС, шт.</th>
+                                        <th>КЦ, шт.</th>
+                                        <th>ГПА, шт.</th>
+                                        <th>ЦДП, шт.</th>
+                                        <th>ДП ЛПУ, шт.</th>
+                                    </tr>
+                                    </thead>
+                                    <tbody>
+                                    <tr v-for="item in transportData" :key="item.do_name">
+                                        <td><strong>{{ item.do_name }}</strong></td>
+                                        <td>{{ item.mg_length || 0 }}</td>
+                                        <td>{{ item.go_length || 0 }}</td>
+                                        <td>{{ item.grs_count || 0 }}</td>
+                                        <td>{{ item.ks_count || 0 }}</td>
+                                        <td>{{ item.kc_count || 0 }}</td>
+                                        <td>{{ item.gpa_count || 0 }}</td>
+                                        <td>{{ item.cdp_count || 0 }}</td>
+                                        <td>{{ item.dp_count || 0 }}</td>
+                                    </tr>
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
                     </div>
-                </div>
-            </div>
 
-            <!-- Вкладки детальной информации -->
-            <ul class="nav nav-tabs mb-4">
-                <li class="nav-item">
-                    <a class="nav-link" :class="{ active: doDetailsTab === 'overview' }"
-                       @click="setDODetailsTab('overview')">Обзор</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" :class="{ active: doDetailsTab === 'tech-data' }"
-                       @click="setDODetailsTab('tech-data')">Технические показатели</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" :class="{ active: doDetailsTab === 'automation' }"
-                       @click="setDODetailsTab('automation')">Уровень автоматизации</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" :class="{ active: doDetailsTab === 'analysis' }"
-                       @click="setDODetailsTab('analysis')">Анализ систем</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" :class="{ active: doDetailsTab === 'problems' }"
-                       @click="setDODetailsTab('problems')">Проблемные системы</a>
-                </li>
-            </ul>
-
-            <!-- Загрузка -->
-            <div v-if="doDetailsLoading" class="text-center py-5">
-                <div class="spinner-border text-primary" role="status">
-                    <span class="visually-hidden">Загрузка...</span>
-                </div>
-                <p class="mt-2">Загрузка данных ДО...</p>
-            </div>
-
-            <!-- Контент вкладок -->
-            <div v-else>
-                <!-- Вкладка обзора -->
-                <div v-if="doDetailsTab === 'overview'">
+                    <!-- Графики транспорта -->
                     <div class="row mb-4">
-                        <!-- KPI карточки -->
-                        <div class="col-md-3" v-for="metric in overviewMetrics" :key="metric.label">
-                            <div class="metric-card">
-                                <div class="metric-value" :class="metric.colorClass">{{ metric.value }}</div>
-                                <div class="metric-label">{{ metric.label }}</div>
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header bg-white">
+                                    <h6 class="mb-0">Покрытие СЛТМ магистральных газопроводов</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="chart-container">
+                                        <canvas id="mgCoverageChart"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header bg-white">
+                                    <h6 class="mb-0">Покрытие СЛТМ газопроводов-отводов</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="chart-container">
+                                        <canvas id="goCoverageChart"></canvas>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
+
+                    <div class="card mb-4">
+                        <div class="card-header bg-white">
+                            <h5 class="mb-0">Тестирование графиков</h5>
+                        </div>
+                        <div class="card-body">
+                            <button class="btn btn-primary me-2" @click="debugGraphics">Диагностика</button>
+                            <button class="btn btn-success me-2" @click="loadTransportCoverageDetailed">Загрузить данные
+                            </button>
+                            <button class="btn btn-warning" @click="renderTransportCoverageCharts">Нарисовать графики
+                            </button>
+                        </div>
+                    </div>
+
 
                     <div class="row">
                         <div class="col-md-6">
                             <div class="card">
                                 <div class="card-header bg-white">
-                                    <h6 class="mb-0">Распределение по типам систем</h6>
+                                    <h6 class="mb-0">Обеспеченность ГРС</h6>
                                 </div>
                                 <div class="card-body">
                                     <div class="chart-container">
-                                        <canvas id="doSystemTypesChart"></canvas>
+                                        <canvas id="grsCoverageChart"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                                    <h6 class="mb-0">Техническое состояние</h6>
+                                    <select class="form-select form-select-sm" style="width: auto;"
+                                            v-model="transportSystemFilter" @change="updateTransportCharts">
+                                        <option value="Все системы">Все системы</option>
+                                        <option value="АСУ ТП УКПГ (УППГ)">АСУ ТП УКПГ</option>
+                                        <option value="АСУ ТП">АСУ ТП</option>
+                                        <option value="САУ ГПА">САУ ГПА</option>
+                                        <option value="АСПС">АСПС</option>
+                                        <option value="СТМ">СТМ</option>
+                                    </select>
+                                </div>
+                                <div class="card-body">
+                                    <div class="chart-container">
+                                        <canvas id="transportConditionChart"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Переработка и ПХГ -->
+                <div v-if="analyticsTab === 'pererabotka' || analyticsTab === 'phg'">
+                    <div class="card">
+                        <div class="card-header bg-white">
+                            <h5 class="mb-0">
+                                <i class="bi bi-tools"></i>
+                                {{ analyticsTab === 'pererabotka' ? 'Переработка' : 'ПХГ' }} - в разработке
+                            </h5>
+                        </div>
+                        <div class="card-body text-center py-5">
+                            <i class="bi bi-gear-fill display-1 text-muted"></i>
+                            <h4 class="text-muted mt-3">Раздел в разработке</h4>
+                            <p class="text-muted">Данный модуль находится в стадии активной разработки</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Возраст систем -->
+                <div v-if="analyticsTab === 'age'">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header bg-white">
+                                    <h6 class="mb-0">Распределение систем по возрасту</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="chart-container">
+                                        <canvas id="ageDistributionChart"></canvas>
                                     </div>
                                 </div>
                             </div>
@@ -694,11 +550,34 @@
                         <div class="col-md-6">
                             <div class="card">
                                 <div class="card-header bg-white">
-                                    <h6 class="mb-0">Возрастное распределение</h6>
+                                    <h6 class="mb-0">Детализация по возрастным группам</h6>
                                 </div>
                                 <div class="card-body">
-                                    <div class="chart-container">
-                                        <canvas id="doAgeDistributionChart"></canvas>
+                                    <div class="table-responsive">
+                                        <table class="table table-sm">
+                                            <thead>
+                                            <tr>
+                                                <th>Возрастная группа</th>
+                                                <th>Количество систем</th>
+                                                <th>Доля</th>
+                                            </tr>
+                                            </thead>
+                                            <tbody>
+                                            <tr v-for="ageGroup in ageStats" :key="ageGroup.age_group">
+                                                <td>{{ ageGroup.age_group }}</td>
+                                                <td>{{ ageGroup.count }}</td>
+                                                <td>
+                                                    <div class="progress" style="height: 20px;">
+                                                        <div class="progress-bar"
+                                                             :class="getAgeProgressClass(ageGroup.age_group)"
+                                                             :style="{ width: getAgePercentage(ageGroup) + '%' }">
+                                                            {{ Math.round(getAgePercentage(ageGroup)) }}%
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                            </tbody>
+                                        </table>
                                     </div>
                                 </div>
                             </div>
@@ -707,50 +586,121 @@
                 </div>
             </div>
 
-            <!-- Технические показатели -->
-            <div v-if="doDetailsTab === 'tech-data'">
-                <div class="card">
-                    <div class="card-header bg-white d-flex justify-content-between align-items-center">
-                        <h6 class="mb-0">Технические показатели</h6>
-                        <div>
-                            <select class="form-select form-select-sm" v-model="techDataYear" @change="loadTechData">
-                                <option v-for="year in availableYears" :value="year">{{ year }}</option>
-                            </select>
+            <!-- Импортозамещение -->
+            <div v-if="activeTab === 'import-substitution'" class="tab-content">
+                <div class="row mb-4">
+                    <div class="col-12">
+                        <h4><i class="bi bi-arrow-left-right text-success"></i> Импортозамещение</h4>
+                    </div>
+                </div>
+
+                <!-- Статистика -->
+                <div class="row mb-4">
+                    <div class="col-md-3">
+                        <div class="stat-card text-center">
+                            <h3 class="text-primary">{{ importStats.overall.total || 0 }}</h3>
+                            <small class="text-muted">Всего систем</small>
                         </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="stat-card text-center">
+                            <h3 class="text-success">{{ importStats.overall.substituted || 0 }}</h3>
+                            <small class="text-muted">Замещено</small>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="stat-card text-center">
+                            <h3 class="text-warning">{{ importStats.overall.testing || 0 }}</h3>
+                            <small class="text-muted">На испытаниях</small>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="stat-card text-center">
+                            <h3 class="text-danger">{{ importStats.overall.not_substituted || 0 }}</h3>
+                            <small class="text-muted">Не замещено</small>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Таблица систем -->
+                <div class="card">
+                    <div class="card-header bg-white">
+                        <h5 class="mb-0">Системы импортозамещения</h5>
                     </div>
                     <div class="card-body">
                         <div class="table-responsive scrollable-table">
                             <table class="table table-sm table-hover">
                                 <thead class="table-light">
                                 <tr>
-                                    <th>Вид системы</th>
+                                    <th>ДО</th>
+                                    <th>Система</th>
                                     <th>Объект</th>
-                                    <th>Год внедрения</th>
-                                    <th>Функциональность</th>
-                                    <th>Износ</th>
                                     <th>Тип ПЛК</th>
                                     <th>SCADA</th>
+
+                                    <th class="position-relative">
+                                        Статус
+                                        <div class="dropdown d-inlinr-block ms-2">
+                                            <!-- кнопка фильтра -->
+                                            <button
+                                                    type="button"
+                                                    class="btn btn-sm ms-2 py-0 px-1"
+                                                    :class="showStatusDropdown ? 'btn-primary' : 'btn-outline-primary'"
+                                                    style="width: 24px; height: 24px;"
+                                                    @click="showStatusDropdown = !showStatusDropdown">
+                                                <i class="bi bi-funnel" style="font-size: 0.8rem;"></i>
+                                            </button>
+
+                                            <!-- Выпадающий список -->
+                                            <div class="dropdown-menu" :class="{ show: showStatusDropdown }"
+                                                 style="min-width: 200px; left: -180px; top: 30px;">
+                                                <div class="dropdown-header bg-primary text-white py-2">
+                                                    <i class="bi bi-filter me-2"></i>Фильтр по статусу
+                                                </div>
+                                                <div class="px-3 py-2">
+                                                    <div class="form-check mb-2" v-for="status in statusOptions"
+                                                         :key="status">
+                                                        <input class="form-check-input" type="radio"
+                                                               name="statusFilter" :id="'status_' + status"
+                                                               :value="status" v-model="importStatusFilter">
+                                                        <label class="form-check-label" :for="'status_' + status">
+                                                            <span class="badge ms-1" :class="getStatusClass(status)">
+                                                                {{ status }}
+                                                            </span>
+                                                        </label>
+                                                    </div>
+                                                    <div class="d-flex justify-content-between mt-3">
+                                                        <button class="btn btn-sm btn-primary"
+                                                                @click="applyStatusFilter">
+                                                            <i class="bi bi-check-lg"></i> Применить
+                                                        </button>
+                                                        <button class="btn btn-sm btn-outline-secondary"
+                                                                @click="showStatusDropdown = false">
+                                                            <i class="bi bi-x-lg"></i> Закрыть
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </th>
+
+
+                                    <th>Этап испытаний</th>
                                 </tr>
                                 </thead>
                                 <tbody>
-                                <tr v-for="detail in techData" :key="detail.id">
-                                    <td>{{ detail['Вид системы автоматизации'] || '-' }}</td>
-                                    <td>{{ detail['Наименование объекта'] || '-' }}</td>
-                                    <td>{{ detail['Год внедрения системы автоматизации'] || '-' }}</td>
+                                <tr v-for="system in importSystems" :key="system.detail_id">
+                                    <td>{{ system.do_name }}</td>
+                                    <td>{{ system.system_name }}</td>
+                                    <td>{{ system.object_name }}</td>
+                                    <td>{{ system.plc_type || '-' }}</td>
+                                    <td>{{ system.scada_type || '-' }}</td>
                                     <td>
-                                                    <span class="badge"
-                                                          :class="getFunctionalityClass(detail['Функциональность, %'])">
-                                                        {{ detail['Функциональность, %'] || '-' }}%
-                                                    </span>
+											<span class="badge" :class="getStatusClass(system.import_status)">
+												{{ system.import_status }}
+											</span>
                                     </td>
-                                    <td>
-                                                    <span class="badge"
-                                                          :class="getWearClass(detail['Эксплуатационный износ'])">
-                                                        {{ detail['Эксплуатационный износ'] || '-' }}%
-                                                    </span>
-                                    </td>
-                                    <td>{{ detail['Тип ПЛК'] || '-' }}</td>
-                                    <td>{{ detail['Тип SCADA'] || '-' }}</td>
+                                    <td>{{ system.test_stage || '-' }}</td>
                                 </tr>
                                 </tbody>
                             </table>
@@ -758,21 +708,140 @@
                     </div>
                 </div>
             </div>
+            <!-- Оценка стандартов -->
+            <div v-if="activeTab === 'standards-assessment'" class="tab-content">
+                <div class="row mb-4">
+                    <div class="col-12">
+                        <h4><i class="bi bi-file-earmark-check text-primary"></i> Оценка зрелости стандартов</h4>
+                        <p class="text-muted">Формализованная оценка стандартов по методике с детерминированными и
+                            вероятностными прогнозами</p>
+                    </div>
+                </div>
 
-            <!-- Анализ систем -->
-            <div v-if="doDetailsTab === 'analysis'">
-                <div class="row">
+                <!-- Загрузка данных -->
+                <div class="card mb-4">
+                    <div class="card-header bg-white">
+                        <h5 class="mb-0">
+                            <i class="bi bi-upload"></i> Загрузка оценочных листов
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Загрузить Excel файл</label>
+                                    <input type="file" class="form-control" id="excelUpload" accept=".xlsx,.xls"
+                                           @change="handleExcelUpload">
+                                    <div class="form-text">Загрузите файл "Оценочный лист действующих стандартов.xlsx"
+                                    </div>
+                                </div>
+                                <button class="btn btn-primary" @click="loadSampleData" :disabled="loadingStandards">
+                                    <i class="bi bi-download"></i> Загрузить тестовые данные
+                                </button>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="alert alert-info">
+                                    <h6><i class="bi bi-info-circle"></i> Формат данных:</h6>
+                                    <ul class="mb-0">
+                                        <li>Строки: стандарты (СТО)</li>
+                                        <li>Колонки A-F: оценки 0-5</li>
+                                        <li>Колонка Σ: сумма баллов</li>
+                                        <li>Колонка "Статус": текущий статус</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Таблица стандартов с оценками -->
+                <div class="card mb-4">
+                    <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">Стандарты и их оценки</h5>
+                        <div class="d-flex align-items-center">
+                            <span class="badge bg-primary me-2">{{ standards.length }} стандартов</span>
+                            <select class="form-select form-select-sm" style="width: 150px;" v-model="maturityFilter"
+                                    @change="filterStandards">
+                                <option value="all">Все уровни</option>
+                                <option value="5">Оптимизирован (25-30)</option>
+                                <option value="4">Актуализированный (20-24)</option>
+                                <option value="3">Рабочий (15-19)</option>
+                                <option value="2">Устаревающий (8-14)</option>
+                                <option value="1">Устаревший (0-7)</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive scrollable-table" style="max-height: 500px;">
+                            <table class="table table-sm table-hover">
+                                <thead class="table-light sticky-top">
+                                <tr>
+                                    <th>№</th>
+                                    <th>Стандарт</th>
+                                    <th class="text-center" title="Актуальность требований">A</th>
+                                    <th class="text-center" title="Технологическая применимость">B</th>
+                                    <th class="text-center" title="Степень использования">C</th>
+                                    <th class="text-center" title="Уровень детализации">D</th>
+                                    <th class="text-center" title="Интеграция и совместимость">E</th>
+                                    <th class="text-center" title="Импортозамещение">F</th>
+                                    <th class="text-center">Σ</th>
+                                    <th>Уровень</th>
+                                    <th>Прогноз</th>
+                                    <th>Рекомендация</th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                <tr v-for="(standard, index) in filteredStandards" :key="standard.id"
+                                    @click="showStandardDetails(standard)"
+                                    style="cursor: pointer;"
+                                    :class="getMaturityClass(standard.maturityLevel)">
+                                    <td>{{ index + 1 }}</td>
+                                    <td>
+                                        <strong>{{ standard.code }}</strong>
+                                        <div class="small text-muted">{{ standard.name.substring(0, 80) }}...</div>
+                                    </td>
+                                    <td class="text-center">{{ standard.scores.A }}</td>
+                                    <td class="text-center">{{ standard.scores.B }}</td>
+                                    <td class="text-center">{{ standard.scores.C }}</td>
+                                    <td class="text-center">{{ standard.scores.D }}</td>
+                                    <td class="text-center">{{ standard.scores.E }}</td>
+                                    <td class="text-center">{{ standard.scores.F }}</td>
+                                    <td class="text-center">
+                                <span class="badge" :class="getScoreBadgeClass(standard.totalScore)">
+                                    {{ standard.totalScore }}/30
+                                </span>
+                                    </td>
+                                    <td>
+                                <span class="badge" :class="getMaturityBadgeClass(standard.maturityLevel)">
+                                    {{ getMaturityLevelText(standard.maturityLevel) }}
+                                </span>
+                                    </td>
+                                    <td>
+                                        <div class="small">
+                                            <div>T_out: {{ standard.deterministicTout.toFixed(1) }} лет</div>
+                                            <div>λ: {{ standard.probabilisticLambda.toFixed(3) }}</div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="small">{{ standard.recommendation }}</span>
+                                    </td>
+                                </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Графики анализа -->
+                <div class="row mb-4">
                     <div class="col-md-6">
                         <div class="card">
                             <div class="card-header bg-white">
-                                <h6 class="mb-0">Статистика по типам систем</h6>
+                                <h6 class="mb-0">Распределение по уровням зрелости</h6>
                             </div>
                             <div class="card-body">
-                                <div v-for="stat in currentDO?.system_stats" :key="stat.system_type" class="mb-2">
-                                    <div class="d-flex justify-content-between align-items-center">
-                                        <span>{{ stat.system_type || 'Не указан' }}</span>
-                                        <span class="badge bg-primary rounded-pill">{{ stat.count }}</span>
-                                    </div>
+                                <div class="chart-container">
+                                    <canvas id="maturityDistributionChart"></canvas>
                                 </div>
                             </div>
                         </div>
@@ -780,48 +849,368 @@
                     <div class="col-md-6">
                         <div class="card">
                             <div class="card-header bg-white">
-                                <h6 class="mb-0">Системы старше 15 лет</h6>
+                                <h6 class="mb-0">Вероятность устаревания через 3 года</h6>
                             </div>
                             <div class="card-body">
-                                <div v-if="currentDO?.age_distribution" class="text-center">
-                                    <h4 class="text-primary">
-                                        {{ getOldSystemsCount }} систем
-                                    </h4>
-                                    <p class="text-muted">требуют внимания</p>
+                                <div class="chart-container">
+                                    <canvas id="probabilityChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Калькулятор оценки -->
+                <div class="card">
+                    <div class="card-header bg-white">
+                        <h5 class="mb-0">
+                            <i class="bi bi-calculator"></i> Калькулятор оценки стандарта
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-8">
+                                <!-- Ввод оценок -->
+                                <div class="row mb-4">
+                                    <div class="col-md-4" v-for="(criteria, key) in criteriaLabels" :key="key">
+                                        <div class="card h-100">
+                                            <div class="card-body text-center">
+                                                <h6 class="card-title">{{ criteria.label }}</h6>
+                                                <p class="small text-muted">{{ criteria.description }}</p>
+                                                <div class="btn-group" role="group">
+                                                    <button v-for="score in [0,1,2,3,4,5]" :key="score"
+                                                            class="btn btn-sm"
+                                                            :class="calculatorScores[key] === score ? 'btn-primary' : 'btn-outline-primary'"
+                                                            @click="calculatorScores[key] = score">
+                                                        {{ score }}
+                                                    </button>
+                                                </div>
+                                                <div class="mt-2">
+                                                    <strong>Текущая оценка: {{ calculatorScores[key] }}</strong>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Настройки модели -->
+                                <div class="row mb-4">
+                                    <div class="col-md-6">
+                                        <label class="form-label">Критичность стандарта</label>
+                                        <select class="form-select" v-model="calculatorCriticality">
+                                            <option value="safety">Безопасностно-критический</option>
+                                            <option value="reliability">Надёжностно-критический</option>
+                                            <option value="standard">Поддерживающий</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">Время анализа (лет)</label>
+                                        <input type="number" class="form-control" v-model="calculatorTime" min="1"
+                                               max="10" step="0.5">
+                                    </div>
+                                </div>
+
+                                <!-- Результаты расчета -->
+                                <div v-if="calculatorResult" class="alert" :class="calculatorResult.alertClass">
+                                    <h5>Результаты оценки</h5>
+                                    <p><strong>Общий балл:</strong> {{ calculatorResult.totalScore }}/30</p>
+                                    <p><strong>Уровень зрелости:</strong> {{ calculatorResult.maturityLevelText }}</p>
+                                    <p><strong>Детерминированный прогноз:</strong> {{
+                                        calculatorResult.deterministicTout.toFixed(1) }} лет</p>
+                                    <p><strong>Вероятность устаревания через {{ calculatorTime }} лет:</strong> {{
+                                        (calculatorResult.probability * 100).toFixed(1) }}%</p>
+                                    <p><strong>Рекомендация:</strong> {{ calculatorResult.recommendation }}</p>
+                                </div>
+
+                                <button class="btn btn-primary" @click="calculateStandard">
+                                    <i class="bi bi-calculator"></i> Рассчитать
+                                </button>
+
+                                <!-- Отображение факторов R, M, T, L -->
+                                <div v-if="calculatorResult" class="mt-4">
+                                    <h6>Расчетные факторы влияния:</h6>
+                                    <div class="row">
+                                        <div class="col-3 text-center">
+                                            <div class="factor-circle bg-primary">R</div>
+                                            <small class="d-block">Регуляторное</small>
+                                            <div class="fw-bold text-primary">{{ calculatorResult.factors?.R?.toFixed(2)
+                                                || '0.00' }}
+                                            </div>
+                                        </div>
+                                        <div class="col-3 text-center">
+                                            <div class="factor-circle bg-success">M</div>
+                                            <small class="d-block">Модернизация</small>
+                                            <div class="fw-bold text-success">{{ calculatorResult.factors?.M?.toFixed(2)
+                                                || '0.00' }}
+                                            </div>
+                                        </div>
+                                        <div class="col-3 text-center">
+                                            <div class="factor-circle bg-warning">T</div>
+                                            <small class="d-block">Технологии</small>
+                                            <div class="fw-bold text-warning">{{ calculatorResult.factors?.T?.toFixed(2)
+                                                || '0.00' }}
+                                            </div>
+                                        </div>
+                                        <div class="col-3 text-center">
+                                            <div class="factor-circle bg-danger">L</div>
+                                            <small class="d-block">Деградация</small>
+                                            <div class="fw-bold text-danger">{{ calculatorResult.factors?.L?.toFixed(2)
+                                                || '0.00' }}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="mt-2 small text-muted">
+                                        <span class="me-3">R = 1 - A/5</span>
+                                        <span class="me-3">M = C/5</span>
+                                        <span class="me-3">T = B/5</span>
+                                        <span>L = 1 - D/5</span>
+                                    </div>
+                                </div>
+
+
+                            </div>
+
+                            <div class="col-md-4">
+                                <!-- График вероятности -->
+                                <div class="card">
+                                    <div class="card-header bg-white">
+                                        <h6 class="mb-0">Вероятностная модель</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="chart-container" style="height: 250px;">
+                                            <canvas id="calculatorChart"></canvas>
+                                        </div>
+                                    </div>
+
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
+        </div>
 
-            <!-- Проблемные системы -->
-            <div v-if="doDetailsTab === 'problems'">
-                <div class="card">
-                    <div class="card-header bg-white">
-                        <h6 class="mb-0">Системы, требующие внимания</h6>
+
+        <!-- Детальная страница ДО -->
+        <div v-if="currentPage === 'do-details'" class="do-details-page">
+            <div class="container-fluid py-4">
+                <!-- Шапка детальной страницы -->
+                <div class="row mb-4">
+                    <div class="col-12">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <h2 class="text-primary mb-2">
+                                    <i class="bi bi-building"></i> {{ currentDO?.do_info?.name }}
+                                </h2>
+                                <p class="text-muted mb-0">Детальная информация по дочерней организации</p>
+                            </div>
+                            <div>
+                                <button class="btn btn-outline-primary me-2"
+                                        @click="loadDODetails(currentDO.do_info.id)">
+                                    <i class="bi bi-arrow-clockwise"></i> Обновить
+                                </button>
+                                <button class="btn btn-primary" @click="showDashboard">
+                                    <i class="bi bi-list-ul"></i> К списку ДО
+                                </button>
+                            </div>
+                        </div>
                     </div>
-                    <div class="card-body">
-                        <div v-if="currentDO?.problem_systems?.length > 0">
-                            <div v-for="problem in currentDO.problem_systems" :key="problem.object_name"
-                                 class="alert alert-warning">
-                                <div class="d-flex justify-content-between align-items-start">
-                                    <div>
-                                        <h6 class="alert-heading">{{ problem.object_name || 'Неизвестный объект' }}</h6>
-                                        <p class="mb-1">Тип: {{ problem.system_type || 'Не указан' }}</p>
-                                        <p class="mb-1">Год внедрения: {{ problem.install_year || 'Не указан' }}</p>
+                </div>
+
+                <!-- Вкладки детальной информации -->
+                <ul class="nav nav-tabs mb-4">
+                    <li class="nav-item">
+                        <a class="nav-link" :class="{ active: doDetailsTab === 'overview' }"
+                           @click="setDODetailsTab('overview')">Обзор</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" :class="{ active: doDetailsTab === 'tech-data' }"
+                           @click="setDODetailsTab('tech-data')">Технические показатели</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" :class="{ active: doDetailsTab === 'automation' }"
+                           @click="setDODetailsTab('automation')">Уровень автоматизации</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" :class="{ active: doDetailsTab === 'analysis' }"
+                           @click="setDODetailsTab('analysis')">Анализ систем</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" :class="{ active: doDetailsTab === 'problems' }"
+                           @click="setDODetailsTab('problems')">Проблемные системы</a>
+                    </li>
+                </ul>
+
+                <!-- Загрузка -->
+                <div v-if="doDetailsLoading" class="text-center py-5">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Загрузка...</span>
+                    </div>
+                    <p class="mt-2">Загрузка данных ДО...</p>
+                </div>
+
+                <!-- Контент вкладок -->
+                <div v-else>
+                    <!-- Вкладка обзора -->
+                    <div v-if="doDetailsTab === 'overview'">
+                        <div class="row mb-4">
+                            <!-- KPI карточки -->
+                            <div class="col-md-3" v-for="metric in overviewMetrics" :key="metric.label">
+                                <div class="metric-card">
+                                    <div class="metric-value" :class="metric.colorClass">{{ metric.value }}</div>
+                                    <div class="metric-label">{{ metric.label }}</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="card">
+                                    <div class="card-header bg-white">
+                                        <h6 class="mb-0">Распределение по типам систем</h6>
                                     </div>
-                                    <div class="text-end">
-                                        <span class="badge bg-danger me-1">Износ: {{ problem.wear }}%</span>
-                                        <span class="badge bg-warning">Функциональность: {{ problem.functionality }}%</span>
+                                    <div class="card-body">
+                                        <div class="chart-container">
+                                            <canvas id="doSystemTypesChart"></canvas>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="card">
+                                    <div class="card-header bg-white">
+                                        <h6 class="mb-0">Возрастное распределение</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="chart-container">
+                                            <canvas id="doAgeDistributionChart"></canvas>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
-                        <div v-else class="text-center py-4">
-                            <i class="bi bi-check-circle display-4 text-success"></i>
-                            <h5 class="mt-3 text-success">Проблемные системы не обнаружены</h5>
-                            <p class="text-muted">Все системы работают в штатном режиме</p>
+                    </div>
+                </div>
+
+                <!-- Технические показатели -->
+                <div v-if="doDetailsTab === 'tech-data'">
+                    <div class="card">
+                        <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                            <h6 class="mb-0">Технические показатели</h6>
+                            <div>
+                                <select class="form-select form-select-sm" v-model="techDataYear"
+                                        @change="loadTechData">
+                                    <option v-for="year in availableYears" :value="year">{{ year }}</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive scrollable-table">
+                                <table class="table table-sm table-hover">
+                                    <thead class="table-light">
+                                    <tr>
+                                        <th>Вид системы</th>
+                                        <th>Объект</th>
+                                        <th>Год внедрения</th>
+                                        <th>Функциональность</th>
+                                        <th>Износ</th>
+                                        <th>Тип ПЛК</th>
+                                        <th>SCADA</th>
+                                    </tr>
+                                    </thead>
+                                    <tbody>
+                                    <tr v-for="detail in techData" :key="detail.id">
+                                        <td>{{ detail['Вид системы автоматизации'] || '-' }}</td>
+                                        <td>{{ detail['Наименование объекта'] || '-' }}</td>
+                                        <td>{{ detail['Год внедрения системы автоматизации'] || '-' }}</td>
+                                        <td>
+                                                    <span class="badge"
+                                                          :class="getFunctionalityClass(detail['Функциональность, %'])">
+                                                        {{ detail['Функциональность, %'] || '-' }}%
+                                                    </span>
+                                        </td>
+                                        <td>
+                                                    <span class="badge"
+                                                          :class="getWearClass(detail['Эксплуатационный износ'])">
+                                                        {{ detail['Эксплуатационный износ'] || '-' }}%
+                                                    </span>
+                                        </td>
+                                        <td>{{ detail['Тип ПЛК'] || '-' }}</td>
+                                        <td>{{ detail['Тип SCADA'] || '-' }}</td>
+                                    </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Анализ систем -->
+                <div v-if="doDetailsTab === 'analysis'">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header bg-white">
+                                    <h6 class="mb-0">Статистика по типам систем</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div v-for="stat in currentDO?.system_stats" :key="stat.system_type" class="mb-2">
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <span>{{ stat.system_type || 'Не указан' }}</span>
+                                            <span class="badge bg-primary rounded-pill">{{ stat.count }}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header bg-white">
+                                    <h6 class="mb-0">Системы старше 15 лет</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div v-if="currentDO?.age_distribution" class="text-center">
+                                        <h4 class="text-primary">
+                                            {{ getOldSystemsCount }} систем
+                                        </h4>
+                                        <p class="text-muted">требуют внимания</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Проблемные системы -->
+                <div v-if="doDetailsTab === 'problems'">
+                    <div class="card">
+                        <div class="card-header bg-white">
+                            <h6 class="mb-0">Системы, требующие внимания</h6>
+                        </div>
+                        <div class="card-body">
+                            <div v-if="currentDO?.problem_systems?.length > 0">
+                                <div v-for="problem in currentDO.problem_systems" :key="problem.object_name"
+                                     class="alert alert-warning">
+                                    <div class="d-flex justify-content-between align-items-start">
+                                        <div>
+                                            <h6 class="alert-heading">{{ problem.object_name || 'Неизвестный объект'
+                                                }}</h6>
+                                            <p class="mb-1">Тип: {{ problem.system_type || 'Не указан' }}</p>
+                                            <p class="mb-1">Год внедрения: {{ problem.install_year || 'Не указан' }}</p>
+                                        </div>
+                                        <div class="text-end">
+                                            <span class="badge bg-danger me-1">Износ: {{ problem.wear }}%</span>
+                                            <span class="badge bg-warning">Функциональность: {{ problem.functionality }}%</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div v-else class="text-center py-4">
+                                <i class="bi bi-check-circle display-4 text-success"></i>
+                                <h5 class="mt-3 text-success">Проблемные системы не обнаружены</h5>
+                                <p class="text-muted">Все системы работают в штатном режиме</p>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -845,6 +1234,8 @@
                 analyticsTab: 'dobycha',
                 doDetailsTab: 'overview',
 
+                calculatorChart: null,
+
                 // Данные
                 doList: [],
                 currentDO: null,
@@ -858,7 +1249,7 @@
                 phgData: [],
                 ageStats: [],
 
-                // Импортозамещение - ДОБАВИТЬ ЭТИ ДАННЫЕ
+                // Импортозамещение
                 importStats: {
                     overall: {
                         total: 0,
@@ -884,10 +1275,37 @@
                 charts: {},
 
                 // Текущая дата
-                currentDate: new Date().toLocaleDateString('ru-RU')
-            }
+                currentDate: new Date().toLocaleDateString('ru-RU'),
 
+                // Оценка стандартов
+                standards: [],
+                filteredStandards: [],
+                maturityFilter: 'all',
+                loadingStandards: false,
+
+                // Калькулятор
+                criteriaLabels: {
+                    A: { label: 'Актуальность', description: 'Соответствие регуляторным нормам' },
+                    B: { label: 'Применимость', description: 'Поддержка современных платформ' },
+                    C: { label: 'Использование', description: 'Применение в проектах 3-5 лет' },
+                    D: { label: 'Детализация', description: 'Качество и полнота требований' },
+                    E: { label: 'Совместимость', description: 'Интеграция с другими стандартами' },
+                    F: { label: 'Импортозамещение', description: 'Ориентация на отечественные решения' }
+                },
+                calculatorScores: { A: 3, B: 3, C: 3, D: 3, E: 3, F: 3 },
+                calculatorCriticality: 'standard',
+                calculatorTime: 3,
+                calculatorResult: null,
+
+                // Веса для разных типов критичности
+                weights: {
+                    safety: { W1: 0.35, W2: 0.25, W3: 0.15, W4: 0.15, W5: 0.10 }, // Безопасность
+                    reliability: { W1: 0.25, W2: 0.35, W3: 0.15, W4: 0.15, W5: 0.10 }, // Надежность
+                    standard: { W1: 0.20, W2: 0.20, W3: 0.20, W4: 0.20, W5: 0.20 } // Стандартный
+                }
+            }
         },
+
         computed: {
             totalDO() {
                 return this.doList.length;
@@ -946,7 +1364,7 @@
                 return this.currentDO.age_distribution
                     .filter(age => age.age_group === '16+ лет')
                     .reduce((sum, age) => sum + age.count, 0);
-            }
+            },
 
             filteredImportSystems() {
                 if (this.importStatusFilter === 'Все') {
@@ -957,12 +1375,14 @@
                 );
             }
         },
+
         async mounted() {
             await this.loadAllData();
             await this.loadImportSubstitution();
             this.initCharts();
             console.log("🚀 Приложение загружено");
         },
+
         methods: {
             // Навигация
             showDashboard() {
@@ -983,7 +1403,6 @@
                 this.analyticsTab = tab;
                 this.$nextTick(() => {
                     this.initAnalyticsCharts();
-                    // ДОБАВЬТЕ ЭТУ СТРОЧКУ:
                     if (tab === 'transport') {
                         setTimeout(() => this.ensureChartsVisible(), 100);
                     }
@@ -1006,338 +1425,6 @@
                     this.loadAnalyticsData()
                 ]);
             },
-
-            // В methods добавьте:
-            async loadTransportCoverageDetailed() {
-                try {
-                    console.log("Загружаем данные покрытия...");
-                    const response = await fetch('http://localhost:8000/api/analytics/transport/coverage-detailed');
-                    this.transportCoverageDetailed = await response.json();
-                    console.log("Данные загружены:", this.transportCoverageDetailed);
-
-
-                    setTimeout(() => {
-                        this.renderTransportCoverageCharts();
-                    }, 100);
-                } catch (error) {
-                    console.error('Ошибка загрузки данных покрытия:', error);
-                }
-            },
-
-            // Обновите renderTransportCharts:
-            renderTransportCharts() {
-                console.log("renderTransportCharts вызван");
-
-                // ПРОВЕРЯЕМ СУЩЕСТВОВАНИЕ ЭЛЕМЕНТОВ ПЕРЕД РИСОВАНИЕМ
-                const mgChart = document.getElementById('mgCoverageChart');
-                const goChart = document.getElementById('goCoverageChart');
-                const grsChart = document.getElementById('grsCoverageChart');
-
-                console.log("Элементы графиков:", { mgChart, goChart, grsChart });
-
-                if (!mgChart || !goChart || !grsChart) {
-                    console.log("❌ Элементы графиков не найдены в DOM, откладываем...");
-                    setTimeout(() => this.renderTransportCharts(), 100);
-                    return;
-                }
-
-                // Если данные уже загружены - рисуем графики
-                if (this.transportCoverageDetailed && this.transportCoverageDetailed.mg.length > 0) {
-                    console.log("✅ Данные загружены, рисуем графики");
-                    this.renderTransportCoverageCharts();
-                } else {
-                    console.log("📥 Данные не загружены, загружаем...");
-                    this.loadTransportCoverageDetailed();
-                }
-            },
-
-            // ДОБАВЬТЕ ЭТОТ МЕТОД В methods
-            ensureChartsVisible() {
-                console.log("Проверка видимости графиков...");
-
-                // Ждем пока Vue обновит DOM
-                this.$nextTick(() => {
-                    // Проверяем, активна ли нужная вкладка
-                    if (this.activeTab === 'analytics' && this.analyticsTab === 'transport') {
-                        console.log("✅ Вкладка транспорта активна, можно рисовать графики");
-                        this.renderTransportCharts();
-                    } else {
-                        console.log("❌ Вкладка транспорта не активна, откладываем рисование");
-                    }
-                });
-            },
-
-
-
-
-
-            debugGraphics() {
-            console.log("=== ДИАГНОСТИКА ГРАФИКОВ ===");
-            console.log("1. transportCoverageDetailed:", this.transportCoverageDetailed);
-            console.log("2. Элемент mgCoverageChart:", document.getElementById('mgCoverageChart'));
-            console.log("3. Элемент goCoverageChart:", document.getElementById('goCoverageChart'));
-            console.log("4. Элемент grsCoverageChart:", document.getElementById('grsCoverageChart'));
-            console.log("5. Текущая вкладка аналитики:", this.analyticsTab);
-            console.log("6. Активная вкладка:", this.activeTab);
-        },
-
-
-                // ДОБАВЬТЕ ЭТИ МЕТОДЫ:
-            async loadTransportCoverageDetailed() {
-                try {
-                    console.log("🔄 Загружаем данные покрытия...");
-                    const response = await fetch('http://localhost:8000/api/analytics/transport/coverage-detailed');
-                    this.transportCoverageDetailed = await response.json();
-                    console.log("✅ Данные загружены:", this.transportCoverageDetailed);
-
-                    // ЗАМЕНИТЕ $nextTick на setTimeout для гарантии
-                    setTimeout(() => {
-                        this.renderTransportCoverageCharts();
-                    }, 200);
-                } catch (error) {
-                    console.error('❌ Ошибка загрузки данных покрытия:', error);
-                }
-            },
-
-            renderTransportCoverageCharts() {
-                console.log("renderTransportCoverageCharts вызван");
-                this.renderMGCoverageChart();
-                this.renderGOCoverageChart();
-                this.renderGRSCoverageChart();
-            },
-
-            renderSimpleMGCoverage() {
-                console.log("=== РЕНДЕРИМ ГРАФИК МГ ===");
-                const ctx = document.getElementById('mgCoverageChart');
-                console.log("Canvas элемент:", ctx);
-
-                if (!ctx) {
-                    console.error("❌ mgCoverageChart не найден!");
-                    return;
-                }
-
-                // Убедимся, что контекст получен правильно
-                const context = ctx.getContext('2d');
-                if (!context) {
-                    console.error("❌ Не удалось получить контекст canvas");
-                    return;
-                }
-
-                // Удаляем старый график
-                if (this.charts.mgCoverage) {
-                    this.charts.mgCoverage.destroy();
-                }
-
-                const data = this.transportCoverageDetailed?.mg || [];
-                console.log("Данные для МГ:", data);
-
-                if (data.length === 0) {
-                    console.log("⚠️ Нет данных для графика МГ");
-                    // Временно добавим тестовые данные для проверки
-                    const testData = [
-                        { do_name: "Тест ДО 1", total: 1000, covered: 800 },
-                        { do_name: "Тест ДО 2", total: 1500, covered: 500 }
-                    ];
-                    this.renderTestChart(ctx, testData, "МГ (тестовые)");
-                    return;
-                }
-
-                // ОСНОВНАЯ РЕАЛИЗАЦИЯ
-                const labels = data.map(item => {
-                    // Сокращаем длинные названия ДО
-                    return item.do_name.replace('ООО «Газпром трансгаз ', '');
-                });
-                const totals = data.map(item => item.total);
-                const covered = data.map(item => item.covered);
-
-                console.log("Лейблы:", labels);
-                console.log("Тоталы:", totals);
-                console.log("Покрытие:", covered);
-
-                this.charts.mgCoverage = new Chart(context, {
-                    type: 'bar',
-                    data: {
-                        labels: labels,
-                        datasets: [
-                            {
-                                label: 'Общая протяженность',
-                                data: totals,
-                                backgroundColor: 'rgba(54, 162, 235, 0.7)',
-                                borderColor: 'rgba(54, 162, 235, 1)',
-                                borderWidth: 2
-                            },
-                            {
-                                label: 'Телемеханизировано',
-                                data: covered,
-                                backgroundColor: 'rgba(75, 192, 192, 0.7)',
-                                borderColor: 'rgba(75, 192, 192, 1)',
-                                borderWidth: 2
-                            }
-                        ]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: {
-                            title: {
-                                display: true,
-                                text: 'Покрытие СЛТМ магистральных газопроводов',
-                                font: { size: 16 }
-                            },
-                            legend: {
-                                position: 'top',
-                            }
-                        },
-                        scales: {
-                            y: {
-                                beginAtZero: true,
-                                title: {
-                                    display: true,
-                                    text: 'Протяженность, км'
-                                },
-                                ticks: {
-                                    callback: function(value) {
-                                        return value.toLocaleString('ru-RU');
-                                    }
-                                }
-                            },
-                            x: {
-                                ticks: {
-                                    maxRotation: 45,
-                                    minRotation: 45
-                                }
-                            }
-                        }
-                    }
-                });
-
-                console.log("✅ График МГ создан!");
-            },
-            renderGOCoverageChart() {
-                const ctx = document.getElementById('goCoverageChart');
-                if (!ctx) return;
-
-                if (this.charts.goCoverage) {
-                    this.charts.goCoverage.destroy();
-                }
-
-                const data = this.transportCoverageDetailed?.go || [];
-
-                if (data.length === 0) return;
-
-                const doNames = data.map(d => d.do_name);
-                const totals = data.map(d => d.total);
-                const covered = data.map(d => d.covered);
-
-                const percentages = data.map(d => Math.round((d.covered / d.total) * 100));
-                const colors = percentages.map(p => {
-                    if (p >= 80) return '#2ecc71';
-                    if (p >= 50) return '#f39c12';
-                    return '#e74c3c';
-                });
-
-                this.charts.goCoverage = new Chart(ctx, {
-                    type: 'bar',
-                    data: {
-                        labels: doNames,
-                        datasets: [
-                            {
-                                label: 'Общая протяженность',
-                                data: totals,
-                                backgroundColor: colors.map(c => c + '80'),
-                                borderColor: colors,
-                                borderWidth: 1
-                            },
-                            {
-                                label: 'Телемеханизировано',
-                                data: covered,
-                                backgroundColor: colors,
-                                borderColor: colors,
-                                borderWidth: 1
-                            }
-                        ]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: {
-                            title: {
-                                display: true,
-                                text: 'Покрытие СЛТМ газопроводов-отводов'
-                            }
-                        },
-                        scales: {
-                            y: {
-                                beginAtZero: true,
-                                title: {
-                                    display: true,
-                                    text: 'Протяженность, км'
-                                }
-                            }
-                        }
-                    }
-                });
-            },
-
-            renderGRSCoverageChart() {
-                const ctx = document.getElementById('grsCoverageChart');
-                if (!ctx) return;
-
-                if (this.charts.grsCoverage) {
-                    this.charts.grsCoverage.destroy();
-                }
-
-                const data = this.transportCoverageDetailed?.grs || [];
-
-                if (data.length === 0) return;
-
-                const doNames = data.map(d => d.do_name);
-                const totals = data.map(d => d.total);
-                const covered = data.map(d => d.covered);
-                const notCovered = totals.map((total, index) => total - covered[index]);
-
-                this.charts.grsCoverage = new Chart(ctx, {
-                    type: 'bar',
-                    data: {
-                        labels: doNames,
-                        datasets: [
-                            {
-                                label: 'Телемеханизировано',
-                                data: covered,
-                                backgroundColor: '#2ecc71'
-                            },
-                            {
-                                label: 'Не телемеханизировано',
-                                data: notCovered,
-                                backgroundColor: '#e74c3c'
-                            }
-                        ]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: {
-                            title: {
-                                display: true,
-                                text: 'Обеспеченность ГРС'
-                            }
-                        },
-                        scales: {
-                            y: {
-                                beginAtZero: true,
-                                title: {
-                                    display: true,
-                                    text: 'Количество ГРС'
-                                }
-                            }
-                        }
-                    }
-                });
-            },
-            // (скопируйте из предыдущего сообщения)
-
-
-
 
             async loadDOList() {
                 try {
@@ -1375,6 +1462,21 @@
                 }
             },
 
+            async loadTransportCoverageDetailed() {
+                try {
+                    console.log("Загружаем данные покрытия...");
+                    const response = await fetch('http://localhost:8000/api/analytics/transport/coverage-detailed');
+                    this.transportCoverageDetailed = await response.json();
+                    console.log("Данные загружены:", this.transportCoverageDetailed);
+
+                    setTimeout(() => {
+                        this.renderTransportCoverageCharts();
+                    }, 100);
+                } catch (error) {
+                    console.error('Ошибка загрузки данных покрытия:', error);
+                }
+            },
+
             // Детальные данные ДО
             async showDODetails(doId) {
                 this.currentPage = 'do-details';
@@ -1387,7 +1489,6 @@
                     const response = await fetch(`http://localhost:8000/api/do/${doId}/full-details`);
                     this.currentDO = await response.json();
 
-                    // Загружаем технические данные
                     await this.loadTechData();
 
                     this.$nextTick(() => {
@@ -1422,18 +1523,14 @@
 
                     if (statsResponse.ok) {
                         this.importStats = await statsResponse.json();
-                    } else {
-                        console.error('Ошибка загрузки статистики импортозамещения');
                     }
 
                     if (systemsResponse.ok) {
                         this.importSystems = await systemsResponse.json();
-                    } else {
-                        console.error('Ошибка загрузки систем импортозамещения');
                     }
                 } catch (error) {
                     console.error('Ошибка загрузки импортозамещения:', error);
-                    // Заглушки для тестирования
+                    // Тестовые данные
                     this.importStats = {
                         overall: { total: 156, substituted: 45, testing: 23, not_substituted: 88 },
                         by_do: []
@@ -1448,34 +1545,156 @@
                             scada_type: "WinCC OA",
                             import_status: "Замещено",
                             test_stage: "Завершено"
-                        },
-                        {
-                            detail_id: 2,
-                            do_name: "ООО «Газпром трансгаз Ухта»",
-                            system_name: "САУ ГПА",
-                            object_name: "КЦ-3",
-                            plc_type: "РТК-1000",
-                            scada_type: "SCADA Pack",
-                            import_status: "Испытания",
-                            test_stage: "Промышленные испытания"
                         }
                     ];
                 }
             },
 
+            // Графики и визуализация
+            ensureChartsVisible() {
+                console.log("Проверка видимости графиков...");
+                this.$nextTick(() => {
+                    if (this.activeTab === 'analytics' && this.analyticsTab === 'transport') {
+                        console.log("✅ Вкладка транспорта активна");
+                        this.renderTransportCharts();
+                    }
+                });
+            },
 
-            //async loadTransportConditionDetailed() {
-            //	try {
-            //		const response = await fetch(`http://localhost:8000/api/analytics/transport/condition-detailed?system_filter=${this.transportSystemFilter}`);
-            //		this.transportConditionDetailed = await response.json();
-            //		this.renderComplexConditionChart();
-            //	} catch (error) {
-            //		console.error('Ошибка загрузки реальных данных состояния:', error);
-            //	}
-            //},
+            debugGraphics() {
+                console.log("=== ДИАГНОСТИКА ГРАФИКОВ ===");
+                console.log("1. transportCoverageDetailed:", this.transportCoverageDetailed);
+                console.log("2. Элемент mgCoverageChart:", document.getElementById('mgCoverageChart'));
+                console.log("3. Активная вкладка:", this.activeTab);
+            },
 
-            // Методы для графиков покрытия СЛТМ
+            buildCalculatorChart(result) {
+            // Подождать обновления DOM
+            this.$nextTick(() => {
+                const ctx = document.getElementById('calculatorChart');
+                if (!ctx) return;
+
+                // Удалить предыдущий график если есть
+                if (this.calculatorChart) {
+                    this.calculatorChart.destroy();
+                }
+
+                // Получить данные для графика
+                const lambda = result.probabilisticLambda || 0.15;
+                const analysisTime = this.calculatorTime || 3;
+
+                // Сгенерировать данные
+                const years = [];
+                const probabilities = [];
+
+                for (let t = 0; t <= 10; t += 0.2) {
+                   years.push(t);
+                    const p = (1 - Math.exp(-lambda * t)) * 100;
+                    probabilities.push(p);
+                }
+
+                // Построить график
+                this.calculatorChart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: years,
+                        datasets: [
+                            {
+                                label: `P_out(t) = 1 - e^(-${lambda.toFixed(3)}·t)`,
+                                data: probabilities,
+                                borderColor: '#8b5cf6',
+                                backgroundColor: 'rgba(139, 92, 246, 0.1)',
+                                borderWidth: 3,
+                                tension: 0.1,
+                                fill: true,
+                                pointRadius: 0
+                            },
+                            {
+                                label: `${analysisTime} лет`,
+                                data: years.map(t => t === analysisTime ? (1 - Math.exp(-lambda * t)) * 100 : null),
+                                backgroundColor: '#ef4444',
+                                borderColor: '#ef4444',
+                                pointRadius: 6,
+                                pointHoverRadius: 10,
+                                fill: false
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                display: true,
+                                position: 'top',
+                                labels: {
+                                    font: { size: 10 },
+                                    boxWidth: 12
+                                }
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        if (context.datasetIndex === 0) {
+                                        return `P(${context.label} лет) = ${context.parsed.y.toFixed(1)}%`;
+                                        }
+                                    return `P(${analysisTime} лет) = ${context.parsed.y.toFixed(1)}%`;
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            x: {
+                                title: {
+                                    display: true,
+                                    text: 'Время (лет)',
+                                    font: { size: 11 }
+                                },
+                                grid: { display: true }
+                            },
+                            y: {
+                                beginAtZero: true,
+                                max: 100,
+                                title: {
+                                    display: true,
+                                    text: 'Вероятность (%)',
+                                    font: { size: 11 }
+                                },
+                                ticks: {
+                                    callback: function(value) {
+                                        return value + '%';
+                                    },
+                                    font: { size: 10 }
+                                    }
+                                }
+                            }
+                        }
+                    });
+                });
+            }
+
+
+
+            renderTransportCharts() {
+                console.log("renderTransportCharts вызван");
+                const mgChart = document.getElementById('mgCoverageChart');
+                const goChart = document.getElementById('goCoverageChart');
+                const grsChart = document.getElementById('grsCoverageChart');
+
+                if (!mgChart || !goChart || !grsChart) {
+                    setTimeout(() => this.renderTransportCharts(), 100);
+                    return;
+                }
+
+                if (this.transportCoverageDetailed && this.transportCoverageDetailed.mg.length > 0) {
+                    this.renderTransportCoverageCharts();
+                } else {
+                    this.loadTransportCoverageDetailed();
+                }
+            },
+
             renderTransportCoverageCharts() {
+                console.log("renderTransportCoverageCharts вызван");
                 this.renderMGCoverageChart();
                 this.renderGOCoverageChart();
                 this.renderGRSCoverageChart();
@@ -1483,10 +1702,8 @@
 
             renderMGCoverageChart() {
                 const ctx = document.getElementById('mgCoverageChart');
-                console.log("Элемент mgCoverageChart:", ctx);
-
                 if (!ctx) {
-                    console.error("❌ mgCoverageChart не найден в DOM!");
+                    console.error("❌ mgCoverageChart не найден!");
                     return;
                 }
 
@@ -1495,17 +1712,11 @@
                 }
 
                 const data = this.transportCoverageDetailed?.mg || [];
-                console.log("Данные для МГ графика:", data);
+                if (data.length === 0) return;
 
-                if (data.length === 0) {
-                    console.log("Нет данных для графика МГ");
-                    return;
-                }
-
-                // ФОРМАТИРУЕМ ДАННЫЕ - преобразуем км в тыс. км для лучшего отображения
                 const doNames = data.map(d => d.do_name);
-                const totals = data.map(d => (d.total / 1000).toFixed(1)); // в тыс. км
-                const covered = data.map(d => (d.covered / 1000).toFixed(1)); // в тыс. км
+                const totals = data.map(d => (d.total / 1000).toFixed(1));
+                const covered = data.map(d => (d.covered / 1000).toFixed(1));
 
                 const percentages = data.map(d => Math.round((d.covered / d.total) * 100));
                 const colors = percentages.map(p => {
@@ -1542,18 +1753,6 @@
                             title: {
                                 display: true,
                                 text: 'Покрытие СЛТМ магистральных газопроводов'
-                            },
-                            tooltip: {
-                                callbacks: {
-                                    label: function(context) {
-                                        let label = context.dataset.label || '';
-                                        if (label) {
-                                            label += ': ';
-                                        }
-                                        label += context.parsed.y + ' тыс. км';
-                                        return label;
-                                    }
-                                }
                             }
                         },
                         scales: {
@@ -1567,8 +1766,6 @@
                         }
                     }
                 });
-
-                console.log("✅ График МГ создан");
             },
 
             renderGOCoverageChart() {
@@ -1580,7 +1777,6 @@
                 }
 
                 const data = this.transportCoverageDetailed?.go || [];
-
                 if (data.length === 0) return;
 
                 const doNames = data.map(d => d.do_name);
@@ -1646,7 +1842,6 @@
                 }
 
                 const data = this.transportCoverageDetailed?.grs || [];
-
                 if (data.length === 0) return;
 
                 const doNames = data.map(d => d.do_name);
@@ -1693,16 +1888,7 @@
                 });
             },
 
-
-
-
-
-
-
-
-
-
-            // ДОБАВИТЬ метод для классов статусов
+            // Вспомогательные методы
             getStatusClass(status) {
                 const classes = {
                     'Замещено': 'bg-success',
@@ -1713,13 +1899,6 @@
                 return classes[status] || 'bg-secondary';
             },
 
-
-
-
-
-
-
-            // Вспомогательные методы
             getAgeProgressClass(ageGroup) {
                 if (ageGroup === '0-5 лет') return 'bg-success';
                 if (ageGroup === '6-10 лет') return 'bg-info';
@@ -1778,34 +1957,23 @@
 
             // Графики аналитики
             renderDobychaCharts() {
-                // График покрытия скважин
                 if (this.dobychaData.length > 0) {
                     this.renderDobychaCoverageChart();
                 }
             },
 
-            renderTransportCharts() {
-                // Графики покрытия трубопроводов
-                this.renderTransportCoverageCharts();
-            },
-
-            renderAgeCharts() {
-                // График распределения по возрастам
-                if (this.ageStats.length > 0) {
-                    this.renderAgeDistributionChart();
-                }
-            },
-
-            // Конкретные реализации графиков
             renderDobychaCoverageChart() {
-                const ctx = document.getElementById('dobychaCoverageChart').getContext('2d');
+                const ctx = document.getElementById('dobychaCoverageChart');
+                if (!ctx) return;
+
+                const context = ctx.getContext('2d');
+                if(!context) return;
 
                 if (this.charts.dobychaCoverage) {
                     this.charts.dobychaCoverage.destroy();
                 }
 
-                // Пример реализации - нужно адаптировать под реальные данные
-                this.charts.dobychaCoverage = new Chart(ctx, {
+                this.charts.dobychaCoverage = new Chart(context, {
                     type: 'bar',
                     data: {
                         labels: this.dobychaData.map(item => item.do_name),
@@ -1828,27 +1996,24 @@
                 });
             },
 
-            renderTransportCoverageCharts() {
-                console.log("renderTransportCoverageCharts вызван");
-                this.renderMGCoverageChart();
-                this.renderGOCoverageChart();
-                this.renderGRSCoverageChart();
-                this.renderTransportConditionChart(); // ДОБАВЬТЕ ЭТУ СТРОЧКУ
-            },
-
-            renderMGCoverageChart() {
-                const ctx = document.getElementById('mgCoverageChart').getContext('2d');
-                // Реализация аналогичная Tkinter с stacked bars и цветами
+            renderAgeCharts() {
+                if (this.ageStats.length > 0) {
+                    this.renderAgeDistributionChart();
+                }
             },
 
             renderAgeDistributionChart() {
-                const ctx = document.getElementById('ageDistributionChart').getContext('2d');
+                const ctx = document.getElementById('ageDistributionChart');
+                if (!ctx) return;
+
+                const context = ctx.getContext('2d');
+                if (!context) return;
 
                 if (this.charts.ageDistribution) {
                     this.charts.ageDistribution.destroy();
                 }
 
-                this.charts.ageDistribution = new Chart(ctx, {
+                this.charts.ageDistribution = new Chart(context, {
                     type: 'doughnut',
                     data: {
                         labels: this.ageStats.map(item => item.age_group),
@@ -1873,14 +2038,18 @@
 
             // Графики детальной страницы ДО
             renderDOSystemTypesChart() {
-                const ctx = document.getElementById('doSystemTypesChart').getContext('2d');
+                const ctx = document.getElementById('doSystemTypesChart');
+                if (!ctx) return;
+
+                const context = ctx.getContext('2d');
+                if (!context) return;
 
                 if (this.charts.doSystemTypes) {
                     this.charts.doSystemTypes.destroy();
                 }
 
                 if (this.currentDO?.system_stats) {
-                    this.charts.doSystemTypes = new Chart(ctx, {
+                    this.charts.doSystemTypes = new Chart(context, {
                         type: 'pie',
                         data: {
                             labels: this.currentDO.system_stats.map(item => item.system_type || 'Не указан'),
@@ -1910,14 +2079,18 @@
             },
 
             renderDOAgeDistributionChart() {
-                const ctx = document.getElementById('doAgeDistributionChart').getContext('2d');
+                const ctx = document.getElementById('doAgeDistributionChart');
+                if (!ctx) return;
+
+                const context = ctx.getContext('2d');
+                if (!context) return;
 
                 if (this.charts.doAgeDistribution) {
                     this.charts.doAgeDistribution.destroy();
                 }
 
                 if (this.currentDO?.age_distribution) {
-                    this.charts.doAgeDistribution = new Chart(ctx, {
+                    this.charts.doAgeDistribution = new Chart(context, {
                         type: 'bar',
                         data: {
                             labels: this.currentDO.age_distribution.map(item => item.age_group),
@@ -1943,11 +2116,6 @@
                 }
             },
 
-            updateTransportCharts() {
-                // Обновление графиков транспорта при изменении фильтра
-                this.renderTransportConditionChart();
-            },
-
             renderTransportConditionChart() {
                 console.log("=== РЕНДЕРИМ ГРАФИК ТЕХНИЧЕСКОГО СОСТОЯНИЯ ===");
                 const ctx = document.getElementById('transportConditionChart');
@@ -1961,7 +2129,6 @@
                     this.charts.transportCondition.destroy();
                 }
 
-                // Временные тестовые данные
                 const testData = {
                     labels: ['ДО 1', 'ДО 2', 'ДО 3', 'ДО 4'],
                     datasets: [
@@ -2013,8 +2180,272 @@
                     }
                 });
 
-                console.log("✅ График технического состояния создан!");
+                console.log("✅ График создан!");
+            },
 
+            updateTransportCharts() {
+                this.renderTransportConditionChart();
+            },
+
+            // Оценка стандартов
+            async handleExcelUpload(event) {
+                const file = event.target.files[0];
+                if (!file) return;
+
+                this.loadingStandards = true;
+                try {
+                    const data = await this.readExcelFile(file);
+                    this.processStandardsData(data);
+                    this.filterStandards();
+                    this.renderStandardCharts();
+                } catch (error) {
+                    console.error('Ошибка загрузки Excel:', error);
+                    alert('Ошибка при загрузке файла Excel');
+                } finally {
+                    this.loadingStandards = false;
+                }
+            },
+
+            async readExcelFile(file) {
+                return new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        try {
+                            const data = new Uint8Array(e.target.result);
+                            const workbook = XLSX.read(data, { type: 'array' });
+                            const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+                            const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+                            resolve(jsonData);
+                        } catch (error) {
+                            reject(error);
+                        }
+                    };
+                    reader.onerror = reject;
+                    reader.readAsArrayBuffer(file);
+                });
+            },
+
+            processStandardsData(excelData) {
+                const standardsData = excelData.slice(5).filter(row => row.length > 0);
+
+                this.standards = standardsData.map((row, index) => {
+                    const scores = {
+                        A: parseInt(row[2]) || 0,
+                        B: parseInt(row[3]) || 0,
+                        C: parseInt(row[4]) || 0,
+                        D: parseInt(row[5]) || 0,
+                        E: parseInt(row[6]) || 0,
+                        F: parseInt(row[7]) || 0
+                    };
+
+                    const totalScore = scores.A + scores.B + scores.C + scores.D + scores.E + scores.F;
+                    const maturityLevel = this.calculateMaturityLevel(totalScore);
+                    const calculations = this.calculateStandardMetrics(scores, 'standard');
+
+                    return {
+                        id: index + 1,
+                        code: row[0] || `СТО-${index + 1}`,
+                        name: row[1] || 'Не указан',
+                        scores: scores,
+                        totalScore: totalScore,
+                        maturityLevel: maturityLevel,
+                        deterministicTout: calculations.deterministicTout,
+                        probabilisticLambda: calculations.lambda,
+                        probability3y: calculations.probability3y,
+                        recommendation: calculations.recommendation,
+                        status: row[10] || 'Не указан'
+                    };
+                });
+            },
+
+            calculateMaturityLevel(totalScore) {
+                if (totalScore >= 25) return 5;
+                if (totalScore >= 20) return 4;
+                if (totalScore >= 15) return 3;
+                if (totalScore >= 8) return 2;
+                return 1;
+            },
+
+            calculateStandardMetrics(scores, criticality = 'standard') {
+                const totalScore = scores.A + scores.B + scores.C + scores.D + scores.E + scores.F;
+                const normalizedScore = totalScore / 30;
+
+                const R = 1 - scores.A / 5;
+                const M = scores.C / 5;
+                const T = scores.B / 5;
+                const L = 1 - scores.D / 5;
+
+                const weights = this.weights[criticality];
+                const T0 = 6;
+                const influence = weights.W1 * R + weights.W2 * M + weights.W3 * T + weights.W4 * L;
+                const deterministicTout = T0 - influence;
+
+                const lambda0 = 0.15;
+                const scoreCorrection = 1 + (1 - normalizedScore);
+                const lambda = lambda0 * scoreCorrection;
+
+                const probability3y = 1 - Math.exp(-lambda * 3);
+
+                let recommendation = '';
+                if (totalScore >= 25) {
+                    recommendation = 'Поддерживать, ревизия по плану';
+                } else if (totalScore >= 20) {
+                    recommendation = 'Актуализировать в течение 2-3 лет';
+                } else if (totalScore >= 15) {
+                    recommendation = 'Частичная актуализация в 1-2 года';
+                } else if (totalScore >= 8) {
+                    recommendation = 'Приоритетная ревизия в годовом плане';
+                } else {
+                    recommendation = 'Утилизация или полная переработка';
+                }
+
+                return {
+                    deterministicTout,
+                    lambda,
+                    probability3y,
+                    recommendation,
+                    normalizedScore,
+                    R, M, T, L
+                };
+            },
+
+            filterStandards() {
+                if (this.maturityFilter === 'all') {
+                    this.filteredStandards = this.standards;
+                } else {
+                    const level = parseInt(this.maturityFilter);
+                    this.filteredStandards = this.standards.filter(s => s.maturityLevel === level);
+                }
+            },
+
+            getMaturityClass(level) {
+                const classes = {
+                    5: 'table-success',
+                    4: 'table-info',
+                    3: '',
+                    2: 'table-warning',
+                    1: 'table-danger'
+                };
+                return classes[level] || '';
+            },
+
+            getMaturityBadgeClass(level) {
+                const classes = {
+                    5: 'bg-success',
+                    4: 'bg-info',
+                    3: 'bg-primary',
+                    2: 'bg-warning',
+                    1: 'bg-danger'
+                };
+                return classes[level] || 'bg-secondary';
+            },
+
+            getMaturityLevelText(level) {
+                const texts = {
+                    5: 'Оптимизирован',
+                    4: 'Актуализированный',
+                    3: 'Рабочий',
+                    2: 'Устаревающий',
+                    1: 'Устаревший'
+                };
+                return texts[level] || 'Не определен';
+            },
+
+            getScoreBadgeClass(score) {
+                if (score >= 25) return 'bg-success';
+                if (score >= 20) return 'bg-info';
+                if (score >= 15) return 'bg-primary';
+                if (score >= 8) return 'bg-warning';
+                return 'bg-danger';
+            },
+
+            // Калькулятор
+            calculateStandard() {
+                const scores = this.calculatorScores;
+                const result = this.calculateStandardMetrics(scores, this.calculatorCriticality);
+
+                const totalScore = scores.A + scores.B + scores.C + scores.D + scores.E + scores.F;
+                const maturityLevel = this.calculateMaturityLevel(totalScore);
+
+                this.calculatorResult = {
+                    totalScore: totalScore,
+                    maturityLevelText: this.getMaturityLevelText(maturityLevel),
+                    deterministicTout: result.deterministicTout,
+                    probability: 1 - Math.exp(-result.lambda * this.calculatorTime),
+                    recommendation: result.recommendation,
+                    alertClass: this.getAlertClass(maturityLevel)
+                };
+
+                this.renderCalculatorChart(result.lambda);
+
+                // Рассчитываем факторы R, M, T, L по методике
+                const A = this.calculatorScores.A;
+                const B = this.calculatorScores.B;
+                const C = this.calculatorScores.C;
+                const D = this.calculatorScores.D;
+
+                const R = 1 - A / 5.0;
+                const M = C / 5.0;
+                const T_val = B / 5.0;
+                const L = 1 - D / 5.0;
+
+                // Сохраняем факторы в результат
+                this.calculatorResult.factors = {
+                   R: R,
+                   M: M,
+                   T: T_val,
+                   L: L
+                };
+            },
+
+            getAlertClass(level) {
+                const classes = {
+                    5: 'alert-success',
+                    4: 'alert-info',
+                    3: 'alert-primary',
+                    2: 'alert-warning',
+                    1: 'alert-danger'
+                };
+                return classes[level] || 'alert-secondary';
+
+                  this.buildCalculatorChart(this.calculatorResult);
+}
+
+            },
+
+            renderCalculatorChart(lambda) {
+                const ctx = document.getElementById('calculatorChart');
+                if (!ctx) return;
+
+                // Базовая реализация графика
+                console.log("Рендерим калькулятор с lambda:", lambda);
+            },
+
+            renderStandardCharts() {
+                // Реализация графиков для оценки стандартов
+                console.log("Рендерим графики стандартов");
+            },
+
+            async loadSampleData() {
+                const sampleData = [
+                    {
+                        id: 1,
+                        code: "СТО Газпром 2-1.15-582-2011",
+                        name: "Автоматизированные системы управления...",
+                        scores: { A: 4, B: 4, C: 5, D: 5, E: 5, F: 4 },
+                        totalScore: 27,
+                        maturityLevel: 5,
+                        deterministicTout: 5.7,
+                        probabilisticLambda: 0.12,
+                        probability3y: 0.34,
+                        recommendation: 'Поддерживать, ревизия по плану',
+                        status: 'Актуальный'
+                    }
+                ];
+
+                this.standards = sampleData;
+                this.filterStandards();
+                this.renderStandardCharts();
             }
         }
     }).mount('#app');
